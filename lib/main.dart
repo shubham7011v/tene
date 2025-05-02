@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:lottie/lottie.dart';
 import 'package:tene/providers/providers.dart';
-import 'package:tene/models/mood_data.dart';
 import 'package:tene/screens/mood_picker_screen.dart';
-import 'package:tene/screens/giphy_picker_screen.dart';
-import 'package:tene/screens/contact_picker_screen.dart';
 import 'package:tene/screens/tene_feed_screen.dart';
+import 'package:tene/screens/home_screen.dart';
+import 'package:flutter/services.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,8 +36,46 @@ class MyApp extends ConsumerWidget {
     
     return MaterialApp(
       title: 'Tene Mood App',
-      theme: theme,
-      home: const MyHomePage(title: 'Tene Mood App'),
+      theme: theme.copyWith(
+        // Add visualDensity to reduce paddings across the app
+        visualDensity: VisualDensity.compact,
+        // Make buttons more compact
+        buttonTheme: const ButtonThemeData(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          minWidth: 0,
+          height: 36,
+        ),
+        // Make text buttons more compact
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+            minimumSize: const Size(0, 36),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ),
+      home: const HomeScreen(),
+      builder: (context, child) {
+        // Add extra padding around the entire app
+        return MediaQuery(
+          // Set a smaller text scale factor to prevent text overflow
+          data: MediaQuery.of(context).copyWith(
+            textScaleFactor: 0.95, // Slightly reduce text scale to prevent overflow
+            padding: MediaQuery.of(context).padding.copyWith(
+              bottom: MediaQuery.of(context).padding.bottom + 8, // Add extra bottom padding
+            ),
+          ),
+          child: Builder(
+            builder: (context) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8), // Extra bottom buffer
+                child: child!,
+              );
+            },
+          ),
+        );
+      },
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -164,9 +200,9 @@ class _MyHomePageState extends ConsumerState<MyHomePage> with SingleTickerProvid
               
               // Main content
               Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
                     // App title
                     Text(
                       "Tene",
@@ -223,7 +259,7 @@ class _MyHomePageState extends ConsumerState<MyHomePage> with SingleTickerProvid
                           children: [
                             const Icon(Icons.send, size: 24),
                             const SizedBox(width: 12),
-                            Text(
+            Text(
                               'Send a Tene',
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 color: Colors.white,

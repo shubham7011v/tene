@@ -54,4 +54,18 @@ final moodMap = {
     primaryColor: Color(0xFFFFAB91),
     secondaryColor: Color(0xFFFF5722),
   ),
+  'cozy': const MoodData(
+    id: 'cozy',
+    emoji: '☺️',
+    name: 'Cozy',
+    primaryColor: Color(0xFFAEC6CF), // Light blue
+    secondaryColor: Color(0xFF6A8CAF), // Deeper blue
+  ),
+  'loved': const MoodData(
+    id: 'loved',
+    emoji: '🥰',
+    name: 'Loved',
+    primaryColor: Color(0xFFAEC6CF), // Light blue
+    secondaryColor: Color(0xFF6A8CAF), // Deeper blue
+  ),
 }; 
