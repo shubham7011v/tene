@@ -92,6 +92,71 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
     ref.read(contactPermissionProvider.notifier).state = status;
   }
   
+  // Extract the Tene sending logic to a new method
+  Future<void> _sendTeneToContact(String phoneNumber, MoodData mood, String? gifUrl) async {
+    if (!mounted) return;
+    
+    // Show loading indicator
+    _showLoadingDialog(mood);
+    
+    // Call service to send Tene
+    await TeneService.sendTene(
+      phoneNumber: phoneNumber,
+      moodName: mood.name,
+      gifUrl: gifUrl ?? '',
+    );
+    
+    // Check if still mounted before UI updates
+    if (!mounted) return;
+    
+    // Close loading dialog and show result
+    Navigator.of(context).pop();
+    
+    // Show success
+    _showSuccessDialog(phoneNumber, mood);
+  }
+
+  // Show loading dialog
+  void _showLoadingDialog(MoodData mood) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(mood.secondaryColor),
+            ),
+            const SizedBox(height: 16),
+            const Text('Sending your Tene...'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Show success dialog
+  void _showSuccessDialog(String phoneNumber, MoodData mood) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tene Sent!'),
+        content: Text('Your mood "${mood.name}" ${mood.emoji} was sent to $phoneNumber with a GIF!'),
+        backgroundColor: mood.primaryColor.withAlpha(240),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Navigate back to the home screen
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+  
   @override
   Widget build(BuildContext context) {
     final permissionStatus = ref.watch(contactPermissionProvider);
@@ -195,7 +260,7 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
                           ),
                           title: Text(contact.displayName),
                           subtitle: Text(phoneNumber),
-                          onTap: () async {
+                          onTap: () {
                             // Save the selected contact
                             ref.read(selectedContactProvider.notifier).state = phoneNumber;
                             
@@ -203,61 +268,8 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
                             final mood = ref.read(currentMoodDataProvider);
                             final gifUrl = ref.read(selectedGifProvider);
                             
-                            // Check mounted state before using context
-                            if (!mounted) return;
-                            
-                            // Store context before async operations
-                            final currentContext = context;
-                            
-                            // Show loading indicator
-                            showDialog(
-                              context: currentContext,
-                              barrierDismissible: false,
-                              builder: (context) => AlertDialog(
-                                content: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(mood.secondaryColor),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    const Text('Sending your Tene...'),
-                                  ],
-                                ),
-                              ),
-                            );
-                            
-                            // Call service to send Tene
-                            await TeneService.sendTene(
-                              phoneNumber: phoneNumber,
-                              moodName: mood.name,
-                              gifUrl: gifUrl ?? '',
-                            );
-                            
-                            // Verify state is still mounted before using context again
-                            if (!mounted) return;
-                            
-                            // Close loading dialog and show result
-                            Navigator.of(currentContext).pop(); // Close loading dialog
-                            
-                            // Show success dialog
-                            showDialog(
-                              context: currentContext,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Tene Sent!'),
-                                content: Text('Your mood "${mood.name}" ${mood.emoji} was sent to $phoneNumber with a GIF!'),
-                                backgroundColor: mood.primaryColor.withAlpha(240),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      // Navigate back to the home screen
-                                      Navigator.of(context).popUntil((route) => route.isFirst);
-                                    },
-                                    child: const Text('OK'),
-                                  ),
-                                ],
-                              ),
-                            );
+                            // Send the Tene with proper context handling
+                            _sendTeneToContact(phoneNumber, mood, gifUrl);
                           },
                         );
                       },

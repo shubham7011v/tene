@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:lottie/lottie.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:tene/models/mood_data.dart';
 import 'package:tene/screens/mood_picker_screen.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/contact_picker_screen.dart';
+import 'package:tene/screens/tene_feed_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,8 +53,30 @@ class MyHomePage extends ConsumerStatefulWidget {
   ConsumerState<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends ConsumerState<MyHomePage> {
-  // Add this method to handle showing contact info
+class _MyHomePageState extends ConsumerState<MyHomePage> with SingleTickerProviderStateMixin {
+  // Use nullable and initialize in initState
+  AnimationController? _animationController;
+  bool _hasNewTene = true; // Set to true for demo purposes
+  
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the animation controller
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _animationController?.repeat(reverse: true);
+  }
+  
+  @override
+  void dispose() {
+    // Safely dispose the animation controller
+    _animationController?.dispose();
+    super.dispose();
+  }
+  
+  // Show contact info
   void _showContact(String phoneNumber, Color backgroundColor) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -62,140 +86,229 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
       ),
     );
   }
+  
+  // Start the Tene sending flow
+  void _startTeneFlow() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const MoodPickerScreen(),
+      ),
+    );
+  }
+  
+  // View received Tenes
+  void _viewReceivedTene() {
+    setState(() {
+      _hasNewTene = false;
+    });
+    
+    // Navigate to the TeneFeedScreen
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const TeneFeedScreen(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     // Access current mood data
-    final currentMoodId = ref.watch(currentMoodProvider);
     final moodData = ref.watch(currentMoodDataProvider);
+    final screenSize = MediaQuery.of(context).size;
     
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: SingleChildScrollView(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                // Display current mood emoji
-                Text(
-                  moodData.emoji,
-                  style: const TextStyle(fontSize: 80),
-                ),
-                const SizedBox(height: 20),
-                
-                // Mood name display
-                Text(
-                  'Current Mood: ${moodData.name}',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 20),
-                
-                // Button to navigate to mood picker
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const MoodPickerScreen(),
+      body: AnimatedContainer(
+        duration: const Duration(milliseconds: 500),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              moodData.primaryColor.withAlpha(40),
+              moodData.primaryColor.withAlpha(100),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              // User avatar in top-right
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(40),
+                        blurRadius: 8,
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.mood),
-                  label: const Text('Change Mood'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    textStyle: const TextStyle(fontSize: 16),
+                    ],
+                  ),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: moodData.primaryColor.withAlpha(200),
+                    child: const Text(
+                      "U",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
-                
-                const SizedBox(height: 16),
-                
-                // Button to navigate to GIF picker
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const GiphyPickerScreen(),
+              ),
+              
+              // Main content
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    // App title
+                    Text(
+                      "Tene",
+                      style: TextStyle(
+                        fontSize: 42,
+                        fontWeight: FontWeight.bold,
+                        color: moodData.secondaryColor,
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.gif),
-                  label: const Text('Find a GIF'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    textStyle: const TextStyle(fontSize: 16),
-                    side: BorderSide(color: moodData.secondaryColor),
-                  ),
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Button to navigate to Contacts picker
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final result = await Navigator.of(context).push<String>(
-                      MaterialPageRoute(
-                        builder: (context) => const ContactPickerScreen(),
-                      ),
-                    );
+                    ),
+                    const SizedBox(height: 20),
                     
-                    if (result != null) {
-                      _showContact(result, moodData.secondaryColor);
-                    }
-                  },
-                  icon: const Icon(Icons.contacts),
-                  label: const Text('Select a Contact'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    textStyle: const TextStyle(fontSize: 16),
-                    side: BorderSide(color: moodData.secondaryColor),
-                  ),
-                ),
-                
-                const SizedBox(height: 30),
-                
-                // Mood selector
-                Wrap(
-                  spacing: 15,
-                  children: moodMap.entries.map((entry) {
-                    final isSelected = entry.key == currentMoodId;
-                    return GestureDetector(
-                      onTap: () {
-                        ref.read(currentMoodProvider.notifier).state = entry.key;
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isSelected 
-                            ? entry.value.secondaryColor 
-                            : entry.value.primaryColor.withAlpha(128),
-                          borderRadius: BorderRadius.circular(12),
-                          border: isSelected 
-                            ? Border.all(color: Colors.black, width: 2)
-                            : null,
+                    // Display current mood emoji
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: moodData.primaryColor.withAlpha(40),
+                      ),
+                      child: Text(
+                        moodData.emoji,
+                        style: const TextStyle(fontSize: 120),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Mood name display
+                    Text(
+                      'Feeling ${moodData.name}',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: moodData.secondaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: screenSize.height * 0.1),
+                    
+                    // Large send button
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: screenSize.width * 0.8,
+                      height: 64,
+                      child: ElevatedButton(
+                        onPressed: _startTeneFlow,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: moodData.secondaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(32),
+                          ),
+                          elevation: 5,
                         ),
-                        child: Column(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+                            const Icon(Icons.send, size: 24),
+                            const SizedBox(width: 12),
                             Text(
-                              entry.value.emoji,
-                              style: const TextStyle(fontSize: 40),
+                              'Send a Tene',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                            Text(entry.value.name),
                           ],
                         ),
                       ),
-                    );
-                  }).toList(),
+                    ),
+                    
+                    // View feed button
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: TextButton.icon(
+                        onPressed: _viewReceivedTene,
+                        icon: Icon(
+                          Icons.inbox_rounded, 
+                          color: moodData.secondaryColor
+                        ),
+                        label: Text(
+                          'View received Tenes',
+                          style: TextStyle(
+                            color: moodData.secondaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
+      
+      // Floating orb for new Tene notifications
+      floatingActionButton: _hasNewTene ? AnimatedBuilder(
+        animation: _animationController ?? const AlwaysStoppedAnimation(0),
+        builder: (context, child) {
+          final animValue = _animationController?.value ?? 0.0;
+          return Transform.scale(
+            scale: 1.0 + (animValue * 0.1),
+            child: FloatingActionButton(
+              onPressed: _viewReceivedTene,
+              backgroundColor: Colors.white,
+              foregroundColor: moodData.secondaryColor,
+              elevation: 4 + (animValue * 4),
+              tooltip: 'New Tene',
+              child: Stack(
+                children: [
+                  Icon(
+                    Icons.mail_outline,
+                    color: moodData.secondaryColor,
+                  ),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 12,
+                        minHeight: 12,
+                      ),
+                      child: const Text(
+                        '1',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ) : null,
     );
   }
 }

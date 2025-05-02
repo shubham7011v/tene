@@ -37,10 +37,14 @@ dependencies:
   flutter_riverpod: ^2.4.10
   firebase_auth: ^4.17.4
   firebase_core: ^2.25.4
+  cloud_firestore: ^4.15.4
   http: ^1.2.0
   flutter_dotenv: ^5.1.0
   permission_handler: ^11.3.0
   flutter_contacts: ^1.1.7+1
+  lottie: ^2.7.0
+  cached_network_image: ^3.3.1
+  timeago: ^3.6.1
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +71,8 @@ flutter:
   # Add .env file to assets
   assets:
     - .env
+    - assets/animations/
+    - assets/images/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
