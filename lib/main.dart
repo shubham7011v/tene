@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:tene/providers/providers.dart';
-import 'package:tene/screens/mood_picker_screen.dart';
+import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/tene_feed_screen.dart';
 import 'package:tene/screens/home_screen.dart';
-import 'package:flutter/services.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -123,14 +123,14 @@ class _MyHomePageState extends ConsumerState<MyHomePage> with SingleTickerProvid
     );
   }
   
-  // Start the Tene sending flow
-  void _startTeneFlow() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const MoodPickerScreen(),
-      ),
-    );
-  }
+    // Start the Tene sending flow
+    void _startTeneFlow() {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const GiphyPickerScreen(),
+        ),
+      );
+    }
   
   // View received Tenes
   void _viewReceivedTene() {

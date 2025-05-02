@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/providers/providers.dart';
-import 'package:tene/screens/mood_picker_screen.dart';
+import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/tene_feed_screen.dart';
 import 'package:tene/screens/receive_tene_screen.dart';
 import 'package:tene/screens/profile_screen.dart';
@@ -41,7 +41,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   void _startTeneFlow() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => const MoodPickerScreen(),
+        builder: (context) => const GiphyPickerScreen(),
       ),
     );
   }
@@ -64,6 +64,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         _isChangingMood = false;
       });
     });
+  }
+  
+  // Show mood selector directly
+  void _showMoodSelector() {
+    final currentMood = ref.read(currentMoodProvider);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Choose Your Mood'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: GridView.count(
+            shrinkWrap: true,
+            crossAxisCount: 3,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            children: cyclableMoods.map((moodId) {
+              final mood = moodMap[moodId]!;
+              
+              return GestureDetector(
+                onTap: () {
+                  ref.read(currentMoodProvider.notifier).state = moodId;
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: mood.primaryColor.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: currentMood == moodId 
+                      ? Border.all(
+                          color: mood.secondaryColor,
+                          width: 2,
+                        )
+                      : null,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        mood.emoji,
+                        style: const TextStyle(fontSize: 28),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        mood.name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: mood.secondaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
   
   // View all received Tenes
@@ -414,6 +481,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                       flex: 1,
                       child: GestureDetector(
                         onTap: _cycleMood,
+                        onLongPress: _showMoodSelector,
                         child: Center(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 20.0),
@@ -528,96 +596,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       ),
       
       // Bottom-left pill button
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
-      floatingActionButton: Stack(
-        children: [
-          // Bottom-left Send a Tene pill button
-          Positioned(
-            left: 20,
-            bottom: 20,
-            child: AnimatedBuilder(
-              animation: _animationController ?? const AlwaysStoppedAnimation(0),
-              builder: (context, child) {
-                final animValue = _animationController?.value ?? 0.0;
-                
-                return Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: deepBlue.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                        spreadRadius: animValue * 2,
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _startTeneFlow,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: deepBlue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                    child: const Text(
-                      'Send a Tene',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: AnimatedBuilder(
+        animation: _animationController ?? const AlwaysStoppedAnimation(0),
+        builder: (context, child) {
+          final animValue = _animationController?.value ?? 0.0;
           
-          // Bottom-right icon-only FAB
-          Positioned(
-            right: 0,
-            bottom: 20,
-            child: AnimatedBuilder(
-              animation: _animationController ?? const AlwaysStoppedAnimation(0),
-              builder: (context, child) {
-                final animValue = _animationController?.value ?? 0.0;
-                
-                return Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: deepBlue.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                        spreadRadius: animValue * 2,
-                      ),
-                    ],
-                  ),
-                  child: FloatingActionButton(
-                    onPressed: _startTeneFlow,
-                    backgroundColor: deepBlue,
-                    elevation: 0,
-                    child: SizedBox(
-                      width: 30,
-                      height: 30,
-                      child: Lottie.asset(
-                        'assets/animations/send_icon_blue.json',
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => 
-                          const Icon(Icons.send, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                );
-              },
+          return GestureDetector(
+
+            onTap: _startTeneFlow,
+            child: Lottie.asset(
+              height: 100,
+              
+              'assets/animations/send_icon_blue.json',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => 
+              const Icon(Icons.send, color: Colors.white),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
