@@ -1,0 +1,29 @@
+{
+    "project_info": {
+        "project_number": "107718302771",
+        "project_id": "tene-emotions-prod-c20b9",
+        "storage_bucket": "tene-emotions-prod-c20b9.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:107718302771:android:8f16ca7740e42dc4e9d746",
+                "android_client_info": {
+                    "package_name": "com.sks.tene"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyCtAMUAuqTQJwkHPYB7j7JLb8NfM89SNUI"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}

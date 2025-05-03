@@ -1,0 +1,165 @@
+name: Flutter Build and Test
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "lib/**"
+      - "test/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to build for (dev/prod)"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  test:
+    name: Flutter Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.19.0"
+          channel: "stable"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze project source
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+  build-android:
+    name: Build Android App
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set environment based on branch or input
+        id: set-environment
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.19.0"
+          channel: "stable"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Setup environment files
+        run: |
+          if [[ "${{ env.ENVIRONMENT }}" == "prod" ]]; then
+            echo "Setting up production env file"
+            cp .env.prod .env
+          else
+            echo "Setting up development env file"
+            cp .env.dev .env
+          fi
+
+      - name: Build APK
+        run: |
+          if [[ "${{ env.ENVIRONMENT }}" == "prod" ]]; then
+            flutter build apk --release --dart-define=ENV=prod
+          else
+            flutter build apk --release --dart-define=ENV=dev
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: tene-${{ env.ENVIRONMENT }}-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  build-ios:
+    name: Build iOS App
+    needs: test
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set environment based on branch or input
+        id: set-environment
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          fi
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.19.0"
+          channel: "stable"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Setup environment files
+        run: |
+          if [[ "${{ env.ENVIRONMENT }}" == "prod" ]]; then
+            echo "Setting up production env file"
+            cp .env.prod .env
+            
+            # Set iOS bundle ID to production
+            cd ios
+            chmod +x set_bundle_id.sh
+            ./set_bundle_id.sh prod
+            cd ..
+          else
+            echo "Setting up development env file"
+            cp .env.dev .env
+          fi
+
+      - name: Build iOS
+        run: |
+          if [[ "${{ env.ENVIRONMENT }}" == "prod" ]]; then
+            flutter build ios --release --no-codesign --dart-define=ENV=prod
+          else
+            flutter build ios --release --no-codesign --dart-define=ENV=dev
+          fi
+
+      - name: Upload iOS build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: tene-${{ env.ENVIRONMENT }}-ios
+          path: build/ios/iphoneos

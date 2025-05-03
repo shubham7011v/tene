@@ -17,20 +17,18 @@ class ReceiveTeneScreen extends ConsumerStatefulWidget {
   ConsumerState<ReceiveTeneScreen> createState() => _ReceiveTeneScreenState();
 }
 
-class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with SingleTickerProviderStateMixin {
+class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   Timer? _countdownTimer;
   int _remainingSeconds = 10; // 10 second countdown
   bool _timerActive = true;
-  
+
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
-    
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 1));
+
     // Mark the Tene as viewed when screen is opened
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _markAsViewed();
@@ -44,7 +42,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
     _controller.dispose();
     super.dispose();
   }
-  
+
   // Start the countdown timer
   void _startCountdown() {
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -52,7 +50,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
         setState(() {
           _remainingSeconds--;
         });
-        
+
         // Update the progress indicator
         _controller.value = 1 - (_remainingSeconds / 10);
       } else {
@@ -60,7 +58,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
         timer.cancel();
         // Delete Tene when timer expires
         _markAsViewed(deleteAfterViewing: true);
-        
+
         // Navigate back to home screen
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
@@ -71,7 +69,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
       }
     });
   }
-  
+
   // Pause or resume the timer
   void _toggleTimer() {
     if (_countdownTimer != null && _countdownTimer!.isActive) {
@@ -92,18 +90,16 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
     final firebaseService = ref.read(firebaseServiceProvider);
     await firebaseService.markTeneAsViewed(widget.tene.id, deleteAfterViewing: deleteAfterViewing);
   }
-  
+
   // Send a Tene back with the same mood
   void _sendTeneBack() {
     // Set the current mood to the one from this Tene
     ref.read(currentMoodProvider.notifier).state = widget.tene.moodId;
-    
+
     // Navigate to GIF picker screen to start the send flow
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => const GiphyPickerScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (context) => const GiphyPickerScreen()));
   }
 
   // Get mood data for this Tene
@@ -116,7 +112,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
   Widget build(BuildContext context) {
     final moodData = _teneColor;
     final size = MediaQuery.of(context).size;
-    
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -126,9 +122,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
           icon: Icon(
             Icons.arrow_back_ios,
             color: Colors.white,
-            shadows: [
-              Shadow(color: Colors.black54, blurRadius: 3),
-            ],
+            shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -138,9 +132,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
             icon: Icon(
               _timerActive ? Icons.pause : Icons.play_arrow,
               color: Colors.white,
-              shadows: [
-                Shadow(color: Colors.black54, blurRadius: 3),
-              ],
+              shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
             ),
             onPressed: _toggleTimer,
           ),
@@ -149,17 +141,15 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
             icon: Icon(
               Icons.delete_outline,
               color: Colors.white,
-              shadows: [
-                Shadow(color: Colors.black54, blurRadius: 3),
-              ],
+              shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
             ),
             onPressed: () async {
               // Cancel the timer
               _countdownTimer?.cancel();
-              
+
               // Mark as viewed with delete option
               await _markAsViewed(deleteAfterViewing: true);
-              
+
               // Navigate back to home screen
               if (mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
@@ -187,7 +177,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
               ),
             ),
           ),
-          
+
           // GIF as fullscreen background (if provided)
           if (widget.tene.gifUrl != null && widget.tene.gifUrl!.isNotEmpty)
             Positioned.fill(
@@ -196,18 +186,19 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
                 child: CachedNetworkImage(
                   imageUrl: widget.tene.gifUrl!,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(moodData.secondaryColor),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: moodData.primaryColor.withAlpha(50),
-                  ),
+                  placeholder:
+                      (context, url) => Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(moodData.secondaryColor),
+                        ),
+                      ),
+                  errorWidget:
+                      (context, url, error) =>
+                          Container(color: moodData.primaryColor.withAlpha(50)),
                 ),
               ),
             ),
-          
+
           // Gradient overlay for better readability
           Positioned.fill(
             child: Container(
@@ -216,15 +207,15 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.5),
+                    Colors.black.withValues(alpha: 0.5),
                     Colors.transparent,
-                    Colors.black.withOpacity(0.5),
+                    Colors.black.withValues(alpha: 0.5),
                   ],
                 ),
               ),
             ),
           ),
-          
+
           // Main content
           SafeArea(
             child: Padding(
@@ -245,7 +236,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
                             return CircularProgressIndicator(
                               value: _controller.value,
                               strokeWidth: 6,
-                              backgroundColor: Colors.white.withOpacity(0.3),
+                              backgroundColor: Colors.white.withValues(alpha: 0.3),
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             );
                           },
@@ -258,9 +249,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
                               color: Colors.white,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(color: Colors.black54, blurRadius: 3),
-                              ],
+                              shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
                             ),
                           ),
                         ),
@@ -268,7 +257,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
                     ),
                   ),
                   const SizedBox(height: 40),
-                  
+
                   // Sender info
                   Text(
                     'From ${widget.tene.senderName}',
@@ -276,21 +265,19 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
-                      shadows: [
-                        Shadow(color: Colors.black54, blurRadius: 3),
-                      ],
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  
+
                   const SizedBox(height: 30),
-                  
+
                   // Large emoji display
                   Container(
                     width: 140,
                     height: 140,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -298,16 +285,14 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
                         widget.tene.moodEmoji,
                         style: const TextStyle(
                           fontSize: 80,
-                          shadows: [
-                            Shadow(color: Colors.black26, blurRadius: 2),
-                          ],
+                          shadows: [Shadow(color: Colors.black26, blurRadius: 2)],
                         ),
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // Mood name
                   Text(
                     'Feeling ${moodMap[widget.tene.moodId]?.name ?? "Happy"}',
@@ -315,15 +300,13 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
                       fontSize: 30,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
-                      shadows: [
-                        Shadow(color: Colors.black54, blurRadius: 3),
-                      ],
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  
+
                   const SizedBox(height: 50),
-                  
+
                   // "Tene Back" button
                   ElevatedButton.icon(
                     onPressed: _sendTeneBack,
@@ -331,17 +314,12 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
                       backgroundColor: Colors.white,
                       foregroundColor: moodData.secondaryColor,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     ),
                     icon: const Icon(Icons.reply),
                     label: const Text(
                       'Tene Back',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -352,4 +330,4 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen> with Sing
       ),
     );
   }
-} 
+}

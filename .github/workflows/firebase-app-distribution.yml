@@ -1,0 +1,82 @@
+name: Deploy to Firebase App Distribution
+
+on:
+  workflow_run:
+    workflows: ["Flutter Build and Test"]
+    types:
+      - completed
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to (dev/prod)"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+
+jobs:
+  distribute-android:
+    name: Distribute Android App
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set environment based on branch or input
+        id: set-environment
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.event.workflow_run.head_branch }}" == "main" ]]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          fi
+
+      - name: Download APK artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: flutter-build.yml
+          name: tene-${{ env.ENVIRONMENT }}-apk
+          path: app/build/outputs/
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: "11"
+
+      - name: Setup Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Distribute Android App
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_APP_ID_DEV: ${{ secrets.FIREBASE_ANDROID_APP_ID_DEV }}
+          FIREBASE_APP_ID_PROD: ${{ secrets.FIREBASE_ANDROID_APP_ID_PROD }}
+        run: |
+          if [[ "${{ env.ENVIRONMENT }}" == "prod" ]]; then
+            echo "Distributing to PRODUCTION testers"
+            APP_ID=$FIREBASE_APP_ID_PROD
+            RELEASE_NOTES="Production release from GitHub Actions - $(date)"
+            TESTERS_GROUP="production-testers"
+          else
+            echo "Distributing to DEVELOPMENT testers"
+            APP_ID=$FIREBASE_APP_ID_DEV
+            RELEASE_NOTES="Development build from GitHub Actions - $(date)"
+            TESTERS_GROUP="development-testers"
+          fi
+
+          echo "Uploading to Firebase App Distribution..."
+          firebase appdistribution:distribute app/build/outputs/app-release.apk \
+            --app $APP_ID \
+            --release-notes "$RELEASE_NOTES" \
+            --groups "$TESTERS_GROUP" \
+            --token "$FIREBASE_TOKEN"

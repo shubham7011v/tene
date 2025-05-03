@@ -1,6 +1,5 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 /// Default [FirebaseOptions] for use with your Firebase apps in the development environment.
 ///
@@ -35,9 +34,7 @@ class DefaultDevFirebaseOptions {
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       default:
-        throw UnsupportedError(
-          'DefaultDevFirebaseOptions are not supported for this platform.',
-        );
+        throw UnsupportedError('DefaultDevFirebaseOptions are not supported for this platform.');
     }
   }
 
@@ -78,4 +75,4 @@ class DefaultDevFirebaseOptions {
     iosClientId: '123456789012-abcdef1234567890dev.apps.googleusercontent.com',
     iosBundleId: 'com.example.tene.dev',
   );
-} 
+}

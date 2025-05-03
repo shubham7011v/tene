@@ -1,0 +1,8 @@
+// This file contains environment-specific configuration
+// It is included in both Debug.xcconfig and Release.xcconfig
+
+// Check for environment flag in DART_DEFINES
+// PRODUCT_BUNDLE_IDENTIFIER gets set in the Xcode project
+// The script in the Run Script phase will determine whether to use development or production bundle ID
+// Default is com.example.tene (development)
+// Production is com.teneapp.tene 

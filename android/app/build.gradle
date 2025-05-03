@@ -28,8 +28,20 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+// Check if environment flag is set (dev or prod)
+def dartEnvironmentVariables = project.property('dart-defines')?.split(',')
+def environment = 'dev' // Default to dev
+
+if (dartEnvironmentVariables != null) {
+    dartEnvironmentVariables.each { def dartDefine ->
+        if (dartDefine.startsWith('ENV=')) {
+            environment = dartDefine.substring('ENV='.length())
+        }
+    }
+}
+
 android {
-    namespace "com.example.tene"
+    namespace getNamespace(environment)
     compileSdk 35
     ndkVersion '27.0.12077973'
 
@@ -44,10 +56,17 @@ android {
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
+        
+        // Use different google-services.json files for different environments
+        if (environment == 'prod') {
+            // If using a dedicated prod directory
+            prod.java.srcDirs += ['src/prod/java']
+            prod.assets.srcDirs += ['src/prod/assets']
+        }
     }
 
     defaultConfig {
-        applicationId "com.example.tene"
+        applicationId getApplicationId(environment)
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
@@ -55,6 +74,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Add debug suffix to the package name for debug builds
+            applicationIdSuffix ".debug"
+        }
         release {
             signingConfig signingConfigs.debug
         }
@@ -69,4 +92,22 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation platform('com.google.firebase:firebase-bom:32.7.2')
     implementation 'com.google.firebase:firebase-analytics'
+}
+
+// Helper function to get the appropriate application ID based on environment
+def getApplicationId(environment) {
+    if (environment == 'prod') {
+        return "com.teneapp.production"
+    } else {
+        return "com.example.tene"
+    }
+}
+
+// Helper function to get the appropriate namespace based on environment
+def getNamespace(environment) {
+    if (environment == 'prod') {
+        return "com.teneapp.production"
+    } else {
+        return "com.example.tene"
+    }
 } 
