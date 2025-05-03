@@ -69,6 +69,69 @@
                 "clear": false
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Build Development APK",
+            "type": "shell",
+            "command": "flutter",
+            "args": [
+                "build",
+                "apk",
+                "--flavor",
+                "dev",
+                "-t",
+                "lib/main_dev.dart"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Production APK",
+            "type": "shell",
+            "command": "flutter",
+            "args": [
+                "build",
+                "apk",
+                "--flavor",
+                "prod",
+                "-t",
+                "lib/main_prod.dart"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean Project",
+            "type": "shell",
+            "command": "flutter",
+            "args": [
+                "clean"
+            ],
+            "group": "none",
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Get Packages",
+            "type": "shell",
+            "command": "flutter",
+            "args": [
+                "pub",
+                "get"
+            ],
+            "group": "none",
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
         }
     ]
 }

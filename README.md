@@ -94,3 +94,34 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [Flutter Team](https://flutter.dev/team)
 - [Firebase](https://firebase.google.com/)
 - [GIPHY](https://giphy.com/)
+
+## How to Fix the Launcher Icon Issue
+
+You're seeing a build error about missing launcher icons. To fix this:
+
+### Option 1: Quick Fix (manual)
+
+1. Create a PNG image of size 192x192 pixels
+2. Save it as `android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`
+3. Copy the same file to these folders (creating them if needed):
+   - `android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png` (144x144px)
+   - `android/app/src/main/res/mipmap-xhdpi/ic_launcher.png` (96x96px)
+   - `android/app/src/main/res/mipmap-mdpi/ic_launcher.png` (48x48px)
+   - `android/app/src/main/res/mipmap-hdpi/ic_launcher.png` (72x72px)
+
+### Option 2: Use Flutter Launcher Icons
+
+1. Create a PNG image for your app icon (512x512px recommended)
+2. Save it as `assets/images/app_icon.png`
+3. Run this command:
+   ```
+   flutter pub run flutter_launcher_icons
+   ```
+
+After doing either option, run:
+```
+flutter clean
+flutter pub get
+```
+
+Then try building your app again.

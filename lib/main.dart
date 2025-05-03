@@ -10,67 +10,34 @@ import 'package:tene/screens/tene_feed_screen.dart';
 import 'package:tene/services/mood_storage_service.dart';
 import 'package:tene/screens/auth_wrapper.dart';
 import 'package:tene/services/service_locator.dart';
-import 'package:tene/config/environment.dart';
-import 'package:tene/widgets/environment_banner.dart';
+import 'package:tene/config/env_config.dart';
 
-Future<void> main() async {
+// Main function is now just for direct run
+void main() async {
+  // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from the appropriate .env file
   try {
-    await dotenv.load(fileName: Environment.isProduction ? ".env.prod" : ".env.dev");
-    print('Loaded environment: ${Environment.environmentName}');
+    // Default to development environment when run directly
+    await EnvironmentConfig.initialize(env: Environment.development);
+
+    // Initialize Firebase first
+    await Firebase.initializeApp(options: DefaultDevFirebaseOptions.currentPlatform);
+
+    runApp(const ProviderScope(child: MyApp()));
   } catch (e) {
-    print('Failed to load environment file: $e');
-    // Continue without env variables, app will use fallbacks
-  }
-
-  // Safely initialize Firebase with the appropriate config
-  final app = await _initializeFirebase();
-
-  // Initialize service locator
-  await ServiceLocator.instance.initialize();
-
-  // Run the app with ProviderScope for Riverpod
-  runApp(const ProviderScope(child: MyApp()));
-}
-
-/// Safely initialize Firebase handling the duplicate app case
-Future<FirebaseApp?> _initializeFirebase() async {
-  try {
-    // Check if Firebase is already initialized
-    final List<FirebaseApp> apps = Firebase.apps;
-    if (apps.isNotEmpty) {
-      // Firebase is already initialized, return the existing app
-      return apps[0];
-    }
-
-    // Initialize Firebase with the environment-specific options
-    final firebaseOptions =
-        Environment.isProduction
-            ? DefaultProdFirebaseOptions.currentPlatform
-            : DefaultDevFirebaseOptions.currentPlatform;
-
-    print('Initializing Firebase for ${Environment.environmentName}');
-    final app = await Firebase.initializeApp(
-      options: firebaseOptions,
-      // Use a different name for debug builds to avoid conflicts
-      name: Environment.isDebugMode ? 'tene-debug' : null,
-    );
-    return app;
-  } catch (e) {
-    print('Firebase initialization error: $e');
-    // Handle initialization errors
-    if (e.toString().contains('duplicate-app')) {
-      return Firebase.app(Environment.isDebugMode ? 'tene-debug' : '[DEFAULT]');
-    }
-
-    return null;
+    debugPrint('Error during initialization: $e');
+    // Try to recover
+    runApp(const ProviderScope(child: MyApp()));
   }
 }
 
+/// The main app widget that configures the application
 class MyApp extends ConsumerStatefulWidget {
-  const MyApp({super.key});
+  final bool debugBanner;
+  final bool environmentBadge;
+
+  const MyApp({super.key, this.debugBanner = true, this.environmentBadge = true});
 
   @override
   ConsumerState<MyApp> createState() => _MyAppState();
@@ -80,8 +47,49 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Initialize the saved mood
-    _initializeSavedMood();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    try {
+      // Only try to initialize Firebase if it wasn't initialized in main
+      if (Firebase.apps.isEmpty) {
+        await _initializeFirebase();
+      }
+
+      // Initialize service locator
+      await ServiceLocator.instance.initialize();
+
+      // Initialize the saved mood
+      _initializeSavedMood();
+    } catch (e) {
+      debugPrint('Error during app initialization: $e');
+    }
+  }
+
+  /// Safely initialize Firebase handling the duplicate app case
+  Future<FirebaseApp?> _initializeFirebase() async {
+    try {
+      // Initialize Firebase with the environment-specific options
+      final firebaseOptions =
+          EnvironmentConfig.isProduction
+              ? DefaultProdFirebaseOptions.currentPlatform
+              : DefaultDevFirebaseOptions.currentPlatform;
+
+      debugPrint('Initializing Firebase for ${EnvironmentConfig.environmentName}');
+
+      // Initialize with default app name
+      return await Firebase.initializeApp(options: firebaseOptions);
+    } catch (e) {
+      debugPrint('Firebase initialization error: $e');
+
+      if (e.toString().contains('duplicate-app')) {
+        debugPrint('Firebase already initialized, returning default app');
+        return Firebase.apps.isNotEmpty ? Firebase.apps.first : null;
+      }
+
+      return null;
+    }
   }
 
   // Initialize the saved mood from SharedPreferences
@@ -101,50 +109,72 @@ class _MyAppState extends ConsumerState<MyApp> {
   Widget build(BuildContext context) {
     final theme = ref.watch(moodThemeProvider);
 
-    return EnvironmentBanner(
-      child: MaterialApp(
-        title: 'Tene - Google Sign-In',
-        theme: theme.copyWith(
-          // Add visualDensity to reduce paddings across the app
-          visualDensity: VisualDensity.compact,
-          // Make buttons more compact
-          buttonTheme: const ButtonThemeData(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            minWidth: 0,
-            height: 36,
-          ),
-          // Make text buttons more compact
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-              minimumSize: const Size(0, 36),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+    // Determine app title based on environment
+    final appTitle = EnvironmentConfig.isDevelopment ? 'Tene Dev' : 'Tene';
+
+    return MaterialApp(
+      title: appTitle,
+      theme: theme.copyWith(
+        // Add visualDensity to reduce paddings across the app
+        visualDensity: VisualDensity.compact,
+        // Make buttons more compact
+        buttonTheme: const ButtonThemeData(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          minWidth: 0,
+          height: 36,
+        ),
+        // Make text buttons more compact
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+            minimumSize: const Size(0, 36),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
-        home: const AuthWrapper(),
-        builder: (context, child) {
-          // Add extra padding around the entire app
-          return MediaQuery(
-            // Set a smaller text scale factor to prevent text overflow
-            data: MediaQuery.of(context).copyWith(
-              padding: MediaQuery.of(context).padding.copyWith(
-                bottom: MediaQuery.of(context).padding.bottom + 8, // Add extra bottom padding
-              ),
-              textScaler: TextScaler.linear(0.95),
-            ),
-            child: Builder(
-              builder: (context) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8), // Extra bottom buffer
-                  child: child!,
-                );
-              },
-            ),
-          );
-        },
-        debugShowCheckedModeBanner: false,
       ),
+      home: Stack(
+        children: [
+          const AuthWrapper(),
+
+          // Show environment badge in development mode
+          if (widget.environmentBadge && EnvironmentConfig.isDevelopment)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.red,
+                padding: const EdgeInsets.only(top: 30, bottom: 4),
+                child: const Text(
+                  'DEVELOPMENT',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+            ),
+        ],
+      ),
+      builder: (context, child) {
+        // Add extra padding around the entire app
+        return MediaQuery(
+          // Set a smaller text scale factor to prevent text overflow
+          data: MediaQuery.of(context).copyWith(
+            padding: MediaQuery.of(context).padding.copyWith(
+              bottom: MediaQuery.of(context).padding.bottom + 8, // Add extra bottom padding
+            ),
+            textScaler: const TextScaler.linear(0.95),
+          ),
+          child: Builder(
+            builder: (context) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8), // Extra bottom buffer
+                child: child!,
+              );
+            },
+          ),
+        );
+      },
+      debugShowCheckedModeBanner: widget.debugBanner,
     );
   }
 }

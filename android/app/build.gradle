@@ -41,9 +41,9 @@ if (dartEnvironmentVariables != null) {
 }
 
 android {
-    namespace getNamespace(environment)
+    namespace "com.example.tene"
     compileSdk 35
-    ndkVersion '27.0.12077973'
+    ndkVersion '26.1.10909125'
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
@@ -66,17 +66,42 @@ android {
     }
 
     defaultConfig {
-        applicationId getApplicationId(environment)
-        minSdkVersion flutter.minSdkVersion
+        applicationId "com.example.tene"
+        // Ensure minSdkVersion is at least 19 for Google Sign-In
+        minSdkVersion Math.max(flutter.minSdkVersion.toInteger(), 19)
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+        // Add multidex support
+        multiDexEnabled true
+    }
+
+    // Add debug signing config to ensure consistent SHA-1 during development
+    signingConfigs {
+        debug {
+            // Use the default debug keystore location
+            // This will be the same keystore that all Flutter debug builds use
+            // No need to specify path - the Android Gradle plugin knows where it is
+        }
+    }
+
+    flavorDimensions "environment"
+    productFlavors {
+        dev {
+            dimension "environment"
+            resValue "string", "app_name", "Tene Dev"
+            versionNameSuffix "-dev"
+        }
+        prod {
+            dimension "environment"
+            resValue "string", "app_name", "Tene"
+        }
     }
 
     buildTypes {
         debug {
-            // Add debug suffix to the package name for debug builds
-            applicationIdSuffix ".debug"
+            // Use the debug signing config to ensure consistent SHA-1
+            signingConfig signingConfigs.debug
         }
         release {
             signingConfig signingConfigs.debug
@@ -92,22 +117,6 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation platform('com.google.firebase:firebase-bom:32.7.2')
     implementation 'com.google.firebase:firebase-analytics'
-}
-
-// Helper function to get the appropriate application ID based on environment
-def getApplicationId(environment) {
-    if (environment == 'prod') {
-        return "com.teneapp.production"
-    } else {
-        return "com.example.tene"
-    }
-}
-
-// Helper function to get the appropriate namespace based on environment
-def getNamespace(environment) {
-    if (environment == 'prod') {
-        return "com.teneapp.production"
-    } else {
-        return "com.example.tene"
-    }
+    // Add explicit Google Play Services Auth dependency for Sign-In
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
 } 

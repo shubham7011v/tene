@@ -1,0 +1,54 @@
+{
+    "project_info": {
+        "project_number": "148139223467",
+        "project_id": "tene-emotions",
+        "storage_bucket": "tene-emotions.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:148139223467:android:951f7945060384cffd4aee",
+                "android_client_info": {
+                    "package_name": "com.example.tene"
+                }
+            },
+            "oauth_client": [
+                {
+                    "client_id": "148139223467-r0fu14ifaobv8qv46t72h97g1noulp3b.apps.googleusercontent.com",
+                    "client_type": 1,
+                    "android_info": {
+                        "package_name": "com.example.tene",
+                        "certificate_hash": "b84b941e19d243aa53a543c05f409765e3a884fe"
+                    }
+                },
+                {
+                    "client_id": "148139223467-kvuc5kamhd6are6i2u4ood3gocgufvfc.apps.googleusercontent.com",
+                    "client_type": 3
+                }
+            ],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyDXRoQ_XjPfMlaSAuOxqiZdAJZ_ITWKq-U"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": [
+                        {
+                            "client_id": "148139223467-kvuc5kamhd6are6i2u4ood3gocgufvfc.apps.googleusercontent.com",
+                            "client_type": 3
+                        },
+                        {
+                            "client_id": "148139223467-34g65jdup4mtgdpsj10k9qq75kgp68v5.apps.googleusercontent.com",
+                            "client_type": 2,
+                            "ios_info": {
+                                "bundle_id": "com.example.tene"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}

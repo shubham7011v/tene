@@ -2,7 +2,7 @@ name: tene
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -35,9 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.4.10
-  firebase_auth: ^4.17.4
+  firebase_auth: ^4.20.0
   firebase_core: ^2.32.0
-  cloud_firestore: ^4.15.4
+  cloud_firestore: ^4.17.5
   http: ^1.2.0
   flutter_dotenv: ^5.1.0
   permission_handler: ^11.3.0
@@ -58,13 +58,22 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+# Flutter launcher icons configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  adaptive_icon_background: "#0175C2"
+  adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
+  min_sdk_android: 21
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -72,7 +81,6 @@ flutter:
 
   # Add .env file to assets
   assets:
-    - .env
     - .env.dev
     - .env.prod
     - assets/animations/

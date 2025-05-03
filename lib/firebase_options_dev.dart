@@ -40,39 +40,39 @@ class DefaultDevFirebaseOptions {
 
   // Development Firebase configuration - Replace these with your actual Firebase development configuration
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDevDevDevDevDevDevDevDevDevDevDevDevDev',
-    appId: '1:123456789012:web:abcdef1234567890dev',
-    messagingSenderId: '123456789012',
-    projectId: 'tene-app-dev',
-    authDomain: 'tene-app-dev.firebaseapp.com',
-    storageBucket: 'tene-app-dev.appspot.com',
+    apiKey: 'AIzaSyDXRoQ_XjPfMlaSAuOxqiZdAJZ_ITWKq-U',
+    appId: '1:148139223467:android:951f7945060384cffd4aee',
+    messagingSenderId: '148139223467',
+    projectId: 'tene-emotions',
+    authDomain: 'tene-emotions.firebaseapp.com',
+    storageBucket: 'tene-emotions.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDevDevDevDevDevDevDevDevDevDevDevDevDev',
-    appId: '1:123456789012:android:abcdef1234567890dev',
-    messagingSenderId: '123456789012',
-    projectId: 'tene-app-dev',
-    storageBucket: 'tene-app-dev.appspot.com',
+    apiKey: 'AIzaSyDXRoQ_XjPfMlaSAuOxqiZdAJZ_ITWKq-U',
+    appId: '1:148139223467:android:951f7945060384cffd4aee',
+    messagingSenderId: '148139223467',
+    projectId: 'tene-emotions',
+    storageBucket: 'tene-emotions.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDevDevDevDevDevDevDevDevDevDevDevDevDev',
-    appId: '1:123456789012:ios:abcdef1234567890dev',
-    messagingSenderId: '123456789012',
-    projectId: 'tene-app-dev',
-    storageBucket: 'tene-app-dev.appspot.com',
-    iosClientId: '123456789012-abcdef1234567890dev.apps.googleusercontent.com',
-    iosBundleId: 'com.example.tene.dev',
+    apiKey: 'AIzaSyDXRoQ_XjPfMlaSAuOxqiZdAJZ_ITWKq-U',
+    appId: '1:148139223467:android:951f7945060384cffd4aee',
+    messagingSenderId: '148139223467',
+    projectId: 'tene-emotions',
+    storageBucket: 'tene-emotions.firebasestorage.app',
+    iosClientId: '148139223467-kvuc5kamhd6are6i2u4ood3gocgufvfc.apps.googleusercontent.com',
+    iosBundleId: 'com.example.tene',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDevDevDevDevDevDevDevDevDevDevDevDevDev',
-    appId: '1:123456789012:macos:abcdef1234567890dev',
-    messagingSenderId: '123456789012',
-    projectId: 'tene-app-dev',
-    storageBucket: 'tene-app-dev.appspot.com',
-    iosClientId: '123456789012-abcdef1234567890dev.apps.googleusercontent.com',
-    iosBundleId: 'com.example.tene.dev',
+    apiKey: 'AIzaSyDXRoQ_XjPfMlaSAuOxqiZdAJZ_ITWKq-U',
+    appId: '1:148139223467:android:951f7945060384cffd4aee',
+    messagingSenderId: '148139223467',
+    projectId: 'tene-emotions',
+    storageBucket: 'tene-emotions.firebasestorage.app',
+    iosClientId: '148139223467-kvuc5kamhd6are6i2u4ood3gocgufvfc.apps.googleusercontent.com',
+    iosBundleId: 'com.example.tene',
   );
 }

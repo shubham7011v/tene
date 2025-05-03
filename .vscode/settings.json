@@ -1,28 +1,51 @@
 {
     // Dart & Flutter specific settings
-    "dart.flutterSdkPath": ".fvm/flutter_sdk", // Remove if not using FVM
+    "dart.flutterSdkPath": ".fvm/flutter_sdk",
+    "dart.sdkPath": ".fvm/flutter_sdk/bin/cache/dart-sdk",
+    "search.exclude": {
+        "**/.fvm": true,
+        "**/*.g.dart": true
+    },
+    "files.watcherExclude": {
+        "**/.fvm": true
+    },
     "dart.lineLength": 100,
-    "editor.rulers": [100],
+    "editor.rulers": [
+        100
+    ],
     "editor.formatOnSave": true,
     "editor.formatOnType": true,
-    "editor.bracketPairColorization.enabled": true,
     "dart.previewFlutterUiGuides": true,
     "dart.openDevTools": "flutter",
     "dart.debugExternalPackageLibraries": false,
     "dart.debugSdkLibraries": false,
-    
+    "dart.showSkippedTests": false,
+    "workbench.colorCustomizations": {
+        "statusBar.background": "#44090c"
+    },
+    "[dart]": {
+        "editor.defaultFormatter": "Dart-Code.dart-code",
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "editor.rulers": [
+            100
+        ],
+        "editor.selectionHighlight": false,
+        "editor.suggest.snippetsPreventQuickSuggestions": false,
+        "editor.suggestSelection": "first",
+        "editor.tabCompletion": "onlySnippets",
+        "editor.wordBasedSuggestions": "off"
+    },
     // File associations
     "files.associations": {
         "*.env.dev": "dotenv",
         "*.env.prod": "dotenv",
         "ENVIRONMENT.md": "markdown"
     },
-    
     // Environment file highlighting
     "[dotenv]": {
         "editor.defaultFormatter": null
     },
-    
     // Exclude files from search and file explorer
     "files.exclude": {
         "**/.git": true,
@@ -36,7 +59,6 @@
         "**/.metadata": true,
         "**/.packages": true
     },
-    
     // Code spell checker configuration (if you use this extension)
     "cSpell.words": [
         "cupertino",
@@ -48,4 +70,4 @@
         "tene",
         "tenes"
     ]
-} 
+}
