@@ -18,10 +18,15 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VSCode related
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+
+# GitHub Actions
+!.github/workflows/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -53,12 +58,12 @@ app.*.map.json
 **/firebase-debug.log
 **/firebase-debug.*.log
 
-# Environment variables - updated for multi-environment
+# Environment variables - ignore all environment files by default
 .env
-# Keep environment templates for multi-environment setup
-!.env.dev
-!.env.prod
+.env.*
+# Exceptions for template files (these will be tracked in git)
 !.env.example
+!.env.template
 
 # Generated files
 *.g.dart
@@ -104,3 +109,44 @@ coverage/
 
 # Windows
 **/windows/flutter/ephemeral
+
+# Mason
+.mason/
+mason-lock.json
+
+# Flutter web
+/web/firebase-messaging-sw.js
+/web/flutter_service_worker.js
+/web/index.html.*
+
+# Fastlane
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots/
+**/fastlane/test_output
+
+# App distribution outputs
+*.ipa
+*.apk
+*.aab
+*.appbundle
+
+# Local deployment configurations
+**/local_deploy_config.json
+
+# Flutter crash reports
+crash_*.log
+
+# IDE-specific files that shouldn't be shared
+**/*.code-workspace
+**/.VSCodeCounter/
+
+# Crashlytics
+**/crashlytics-build.properties
+
+# Performance monitoring
+**/performance-build.properties
+
+# CI/CD cache
+**/.cirrus-ci-build-cache/
+**/.github/actions-cache/
