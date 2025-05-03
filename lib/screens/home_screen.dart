@@ -9,6 +9,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:tene/models/mood_data.dart';
 import 'package:lottie/lottie.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:tene/services/mood_storage_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +21,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
   AnimationController? _animationController;
   bool _isChangingMood = false;
+  bool _isLoading = true;
+  bool _assetsPreloaded = false;
   
   @override
   void initState() {
@@ -29,12 +32,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       duration: const Duration(milliseconds: 1500),
     );
     _animationController?.repeat(reverse: true);
+    
+    // Simulate loading time and then set loading to false
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Only preload assets once
+    if (!_assetsPreloaded) {
+      _preloadAssets();
+      _assetsPreloaded = true;
+    }
   }
   
   @override
   void dispose() {
     _animationController?.dispose();
     super.dispose();
+  }
+  
+  // Preload Lottie animations and other heavy assets
+  void _preloadAssets() async {
+    final currentMood = ref.read(currentMoodProvider);
+    final moodBackdropPath = moodLottieBackdropMap[currentMood] ?? moodLottieBackdropMap['loved']!;
+    
+    // Preload the current mood's backdrop
+    await precacheImage(AssetImage(moodBackdropPath.replaceAll('.json', '.png')), context)
+        .catchError((_) {});
+    
+    // Preload common animations
+    await Future.delayed(const Duration(milliseconds: 100));
   }
   
   // Start the Tene sending flow
@@ -58,8 +93,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     final nextMood = getNextMood(currentMood);
     
     // Change mood with a slight delay for animation
-    Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 800), () {
       ref.read(currentMoodProvider.notifier).state = nextMood;
+      // Save the selected mood to SharedPreferences
+      MoodStorageService.saveLastSelectedMood(nextMood);
       setState(() {
         _isChangingMood = false;
       });
@@ -87,6 +124,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               return GestureDetector(
                 onTap: () {
                   ref.read(currentMoodProvider.notifier).state = moodId;
+                  // Save the selected mood to SharedPreferences
+                  MoodStorageService.saveLastSelectedMood(moodId);
                   Navigator.pop(context);
                 },
                 child: Container(
@@ -323,6 +362,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     final snowBlue = const Color(0xFFCDE1F0);
     final deepBlue = const Color(0xFF6A8CAF);
     
+    // Loading placeholder
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: moodData.primaryColor.withOpacity(0.3),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(deepBlue),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Loading Tene...',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: deepBlue,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -480,13 +545,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     Expanded(
                       flex: 1,
                       child: GestureDetector(
-                        onTap: _cycleMood,
-                        onLongPress: _showMoodSelector,
+                        onTap: _showMoodSelector,
+                        onDoubleTap: _cycleMood,
                         child: Center(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 20.0),
                             child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
+                              duration: const Duration(milliseconds: 800),
                               transitionBuilder: (Widget child, Animation<double> animation) {
                                 return FadeTransition(
                                   opacity: animation,
@@ -540,7 +605,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                                       ),
                                       const SizedBox(height: 16),
                                       Text(
-                                        'Tap to change mood',
+                                        'Tap to choose mood\nDouble tap to cycle',
                                         style: TextStyle(
                                           fontSize: 16,
                                           color: moodData.secondaryColor.withOpacity(0.9),
@@ -553,6 +618,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                                             ),
                                           ],
                                         ),
+                                        textAlign: TextAlign.center,
                                       ),
                                     ],
                                   ),
@@ -595,27 +661,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         }
       ),
       
-      // Bottom-left pill button
+      // Centered send icon FAB
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: AnimatedBuilder(
-        animation: _animationController ?? const AlwaysStoppedAnimation(0),
-        builder: (context, child) {
-          final animValue = _animationController?.value ?? 0.0;
-          
-          return GestureDetector(
-
+      floatingActionButton:  GestureDetector(
             onTap: _startTeneFlow,
             child: Lottie.asset(
               height: 100,
-              
               'assets/animations/send_icon_blue.json',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => 
               const Icon(Icons.send, color: Colors.white),
             ),
-          );
-        },
-      ),
+          )
     );
   }
   

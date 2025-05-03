@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:tene/firebase_options.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/tene_feed_screen.dart';
 import 'package:tene/screens/home_screen.dart';
-
+import 'package:tene/services/mood_storage_service.dart';
+import 'package:tene/screens/auth_wrapper.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,10 +18,12 @@ Future<void> main() async {
   
   try {
     // Initialize Firebase with error handling
-    await Firebase.initializeApp();
-  //  print("Firebase initialized successfully");
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print("Firebase initialized successfully");
   } catch (e) {
-   // print("Failed to initialize Firebase: $e");
+    print("Failed to initialize Firebase: $e");
     // Continue without Firebase for now
   }
   
@@ -27,15 +31,40 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the saved mood
+    _initializeSavedMood();
+  }
+  
+  // Initialize the saved mood from SharedPreferences
+  Future<void> _initializeSavedMood() async {
+    final lastSelectedMood = await MoodStorageService.getLastSelectedMood();
+    
+    // If we have a saved mood, set it as the current mood
+    if (lastSelectedMood != null && mounted) {
+      // Update on the next frame to avoid setState during build
+      Future.microtask(() {
+        ref.read(currentMoodProvider.notifier).state = lastSelectedMood;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = ref.watch(moodThemeProvider);
     
     return MaterialApp(
-      title: 'Tene Mood App',
+      title: 'Tene - Phone Auth',
       theme: theme.copyWith(
         // Add visualDensity to reduce paddings across the app
         visualDensity: VisualDensity.compact,
@@ -54,7 +83,7 @@ class MyApp extends ConsumerWidget {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: const AuthWrapper(),
       builder: (context, child) {
         // Add extra padding around the entire app
         return MediaQuery(

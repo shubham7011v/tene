@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/models/mood_data.dart';
 import 'package:tene/models/tene_model.dart';
 import 'package:tene/services/firebase_service.dart';
+import 'package:tene/services/auth_service.dart';
 
 /// Simple weather data model for display
 class WeatherData {
@@ -148,7 +149,14 @@ final userProfileProvider = StateProvider<Map<String, dynamic>>((ref) {
     'name': 'User',
     'avatarUrl': null,
     'initialLetter': 'U',
+    'phoneNumber': '+1234567890', // Default phone number
   };
+});
+
+/// Provider for the user's phone number
+final userPhoneNumberProvider = Provider<String>((ref) {
+  final userProfile = ref.watch(userProfileProvider);
+  return userProfile['phoneNumber'] ?? '';
 });
 
 /// Provider that gives access to the current mood data
@@ -228,7 +236,25 @@ final moodThemeProvider = Provider<ThemeData>((ref) {
 /// Provider for tracking onboarding screen index
 final onboardingScreenIndexProvider = StateProvider<int>((ref) => 0);
 
-/// Provider for tracking authentication state
+/// Auth service provider
+final authServiceProvider = Provider<AuthService>((ref) {
+  return AuthService();
+});
+
+/// Auth state provider
 final authStateProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
+  return ref.watch(authServiceProvider).authStateChanges;
+});
+
+/// StreamProvider for unviewed Tenes by phone number
+final unviewedTenesByPhoneProvider = StreamProvider<List<TeneModel>>((ref) {
+  final firebaseService = ref.watch(firebaseServiceProvider);
+  final phoneNumber = ref.watch(userPhoneNumberProvider);
+  
+  // Return empty list if phone number is not available
+  if (phoneNumber.isEmpty) {
+    return Stream.value([]);
+  }
+  
+  return firebaseService.getUnviewedTenesByPhone(phoneNumber);
 }); 

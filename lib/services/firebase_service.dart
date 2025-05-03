@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tene/models/tene_model.dart';
+import 'package:tene/models/mood_data.dart';
 
 /// Service for handling Firebase operations related to Tenes
 class FirebaseService {
@@ -27,15 +28,38 @@ class FirebaseService {
     });
   }
 
+  /// Stream of unviewed Tenes for a specific phone number
+  Stream<List<TeneModel>> getUnviewedTenesByPhone(String phoneNumber) {
+    if (phoneNumber.isEmpty) {
+      return Stream.value([]);
+    }
+
+    return _firestore
+        .collection('tenes')
+        .where('to', isEqualTo: phoneNumber)
+        .where('viewed', isEqualTo: false)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => TeneModel.fromFirestore(doc)).toList();
+    });
+  }
+
   /// Mark a Tene as viewed
-  Future<void> markTeneAsViewed(String teneId) async {
+  Future<void> markTeneAsViewed(String teneId, {bool deleteAfterViewing = false}) async {
     if (teneId.isEmpty || currentUserId.isEmpty) {
       return;
     }
 
-    await _firestore.collection('tenes').doc(teneId).update({
-      'viewed': true,
-    });
+    if (deleteAfterViewing) {
+      // Delete the Tene completely for full ephemerality
+      await _firestore.collection('tenes').doc(teneId).delete();
+    } else {
+      // Just mark it as viewed
+      await _firestore.collection('tenes').doc(teneId).update({
+        'viewed': true,
+      });
+    }
   }
 
   /// Delete a Tene
@@ -47,31 +71,38 @@ class FirebaseService {
     await _firestore.collection('tenes').doc(teneId).delete();
   }
 
-  /// Send a new Tene
+  /// Send a new Tene with structured media data
   Future<void> sendTene({
-    required String recipientId,
-    required String recipientPhone,
-    required String moodId,
-    required String moodEmoji,
-    String? senderName,
-    String? gifUrl,
+    required String fromPhone,
+    required String toPhone,
+    required String mood,
+    required String mediaUrl,
   }) async {
+    // Ensure we have a valid sender ID
     if (currentUserId.isEmpty) {
       throw Exception('You must be logged in to send a Tene');
     }
-
+    
+    // Get the mood emoji from the mood ID
+    final moodEmoji = moodMap[mood]?.emoji ?? '😊';
+    
+    // Create the Tene document
     final tene = {
-      'senderId': currentUserId,
-      'senderName': senderName ?? 'Anonymous',
-      'recipientId': recipientId,
-      'phoneNumber': recipientPhone,
-      'moodId': moodId,
+      'from': fromPhone,
+      'to': toPhone,
+      'mood': mood,
       'moodEmoji': moodEmoji,
-      'gifUrl': gifUrl,
+      'media': {
+        'type': 'gif',
+        'url': mediaUrl,
+      },
       'timestamp': FieldValue.serverTimestamp(),
       'viewed': false,
+      'senderId': currentUserId,
+      'senderName': _auth.currentUser?.displayName ?? 'Anonymous',
     };
-
+    
+    // Add the document to the 'tenes' collection
     await _firestore.collection('tenes').add(tene);
   }
 } 
