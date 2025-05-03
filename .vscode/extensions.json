@@ -1,0 +1,13 @@
+{
+    "recommendations": [
+        "dart-code.dart-code",
+        "dart-code.flutter",
+        "mikestead.dotenv",
+        "streetsidesoftware.code-spell-checker",
+        "wayou.vscode-todo-highlight",
+        "redhat.vscode-yaml",
+        "gruntfuggly.todo-tree",
+        "aaron-bond.better-comments",
+        "robert-brunhage.flutter-riverpod-snippets"
+    ]
+}

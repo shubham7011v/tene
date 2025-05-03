@@ -1,0 +1,10 @@
+{
+    "firestore": {
+        "rules": "firestore.rules.prod",
+        "indexes": "firestore.indexes.json"
+    },
+    "storage": {
+        "rules": "storage.rules"
+    },
+    "projectId": "tene-app-prod"
+}

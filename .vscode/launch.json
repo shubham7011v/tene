@@ -5,21 +5,62 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "tene",
-            "request": "launch",
-            "type": "dart"
-        },
-        {
-            "name": "tene (profile mode)",
+            "name": "Tene (Development)",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "profile"
+            "args": [
+                "--dart-define=ENV=dev"
+            ],
+            "program": "lib/main.dart"
         },
         {
-            "name": "tene (release mode)",
+            "name": "Tene (Production)",
             "request": "launch",
             "type": "dart",
-            "flutterMode": "release"
+            "args": [
+                "--dart-define=ENV=prod"
+            ],
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "Tene (Profile Mode - Dev)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
+            "args": [
+                "--dart-define=ENV=dev"
+            ],
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "Tene (Profile Mode - Prod)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
+            "args": [
+                "--dart-define=ENV=prod"
+            ],
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "Tene (Release Mode - Dev)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "args": [
+                "--dart-define=ENV=dev"
+            ],
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "Tene (Release Mode - Prod)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "args": [
+                "--dart-define=ENV=prod"
+            ],
+            "program": "lib/main.dart"
         }
     ]
 }

@@ -26,10 +26,7 @@ class AuthService {
       // First check if the user is already signed in to Google
       GoogleSignInAccount? currentUser = _googleSignIn.currentUser;
       try {
-        if (currentUser == null) {
-          // Try silent sign-in first to avoid UI if possible
-          currentUser = await _googleSignIn.signInSilently();
-        }
+        currentUser ??= await _googleSignIn.signInSilently();
       } catch (e) {
         // Continue with manual sign-in
       }

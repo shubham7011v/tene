@@ -1,0 +1,51 @@
+{
+    // Dart & Flutter specific settings
+    "dart.flutterSdkPath": ".fvm/flutter_sdk", // Remove if not using FVM
+    "dart.lineLength": 100,
+    "editor.rulers": [100],
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "editor.bracketPairColorization.enabled": true,
+    "dart.previewFlutterUiGuides": true,
+    "dart.openDevTools": "flutter",
+    "dart.debugExternalPackageLibraries": false,
+    "dart.debugSdkLibraries": false,
+    
+    // File associations
+    "files.associations": {
+        "*.env.dev": "dotenv",
+        "*.env.prod": "dotenv",
+        "ENVIRONMENT.md": "markdown"
+    },
+    
+    // Environment file highlighting
+    "[dotenv]": {
+        "editor.defaultFormatter": null
+    },
+    
+    // Exclude files from search and file explorer
+    "files.exclude": {
+        "**/.git": true,
+        "**/.dart_tool": true,
+        "**/.idea": true,
+        "**/*.iml": true,
+        "**/.DS_Store": true,
+        "**/build/": true,
+        "**/.flutter-plugins": true,
+        "**/.flutter-plugins-dependencies": true,
+        "**/.metadata": true,
+        "**/.packages": true
+    },
+    
+    // Code spell checker configuration (if you use this extension)
+    "cSpell.words": [
+        "cupertino",
+        "dotenv",
+        "firestore",
+        "flutterfire",
+        "giphy",
+        "riverpod",
+        "tene",
+        "tenes"
+    ]
+} 

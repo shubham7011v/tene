@@ -73,6 +73,8 @@ flutter:
   # Add .env file to assets
   assets:
     - .env
+    - .env.dev
+    - .env.prod
     - assets/animations/
     - assets/animations/mood_backdrops/
     - assets/images/

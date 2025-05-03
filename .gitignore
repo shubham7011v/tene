@@ -48,14 +48,16 @@ app.*.map.json
 # Firebase related
 **/google-services.json
 **/GoogleService-Info.plist
-**/firebase_options.dart
+# We now version control our firebase options files for multi-environment setup
+# **/firebase_options.dart
 **/firebase-debug.log
 **/firebase-debug.*.log
 
-# Environment variables
+# Environment variables - updated for multi-environment
 .env
-*.env
-.env.*
+# Keep environment templates for multi-environment setup
+!.env.dev
+!.env.prod
 !.env.example
 
 # Generated files
@@ -74,9 +76,31 @@ coverage/
 *.swp
 *~
 
-# IDE specific files
-.vscode/
-.idea/
-*.iml
-*.ipr
-*.iws
+# FVM (if using Flutter Version Management)
+.fvm/flutter_sdk
+
+# iOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+
+# Android
+**/android/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.*
+
+# Web related
+**/web/firebase-messaging-sw.js
+
+# macOS
+**/macos/Flutter/ephemeral
+**/macos/Pods/
+
+# Windows
+**/windows/flutter/ephemeral

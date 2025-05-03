@@ -2,25 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:tene/firebase_options.dart';
+import 'package:tene/firebase_options_dev.dart';
+import 'package:tene/firebase_options_prod.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/tene_feed_screen.dart';
 import 'package:tene/services/mood_storage_service.dart';
 import 'package:tene/screens/auth_wrapper.dart';
 import 'package:tene/services/service_locator.dart';
+import 'package:tene/config/environment.dart';
+import 'package:tene/widgets/environment_banner.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Load environment variables from .env file
+  // Load environment variables from the appropriate .env file
   try {
-    await dotenv.load(fileName: ".env");
+    await dotenv.load(fileName: Environment.isProduction ? ".env.prod" : ".env.dev");
+    print('Loaded environment: ${Environment.environmentName}');
   } catch (e) {
+    print('Failed to load environment file: $e');
     // Continue without env variables, app will use fallbacks
   }
   
-  // Safely initialize Firebase
+  // Safely initialize Firebase with the appropriate config
   final app = await _initializeFirebase();
   
   // Initialize service locator
@@ -42,12 +47,18 @@ Future<FirebaseApp?> _initializeFirebase() async {
       return apps[0];
     }
     
-    // Initialize Firebase with the default options
+    // Initialize Firebase with the environment-specific options
+    final firebaseOptions = Environment.isProduction 
+        ? DefaultProdFirebaseOptions.currentPlatform
+        : DefaultDevFirebaseOptions.currentPlatform;
+    
+    print('Initializing Firebase for ${Environment.environmentName}');
     final app = await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+      options: firebaseOptions,
     );
     return app;
   } catch (e) {
+    print('Firebase initialization error: $e');
     // Handle initialization errors
     if (e.toString().contains('duplicate-app')) {
       return Firebase.app('[DEFAULT]');
@@ -89,47 +100,49 @@ class _MyAppState extends ConsumerState<MyApp> {
   Widget build(BuildContext context) {
     final theme = ref.watch(moodThemeProvider);
     
-    return MaterialApp(
-      title: 'Tene - Google Sign-In',
-      theme: theme.copyWith(
-        // Add visualDensity to reduce paddings across the app
-        visualDensity: VisualDensity.compact,
-        // Make buttons more compact
-        buttonTheme: const ButtonThemeData(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          minWidth: 0,
-          height: 36,
-        ),
-        // Make text buttons more compact
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-            minimumSize: const Size(0, 36),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return EnvironmentBanner(
+      child: MaterialApp(
+        title: 'Tene - Google Sign-In',
+        theme: theme.copyWith(
+          // Add visualDensity to reduce paddings across the app
+          visualDensity: VisualDensity.compact,
+          // Make buttons more compact
+          buttonTheme: const ButtonThemeData(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            minWidth: 0,
+            height: 36,
+          ),
+          // Make text buttons more compact
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+              minimumSize: const Size(0, 36),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
           ),
         ),
+        home: const AuthWrapper(),
+        builder: (context, child) {
+          // Add extra padding around the entire app
+          return MediaQuery(
+            // Set a smaller text scale factor to prevent text overflow
+            data: MediaQuery.of(context).copyWith(
+              padding: MediaQuery.of(context).padding.copyWith(
+                bottom: MediaQuery.of(context).padding.bottom + 8, // Add extra bottom padding
+              ), textScaler: TextScaler.linear(0.95),
+            ),
+            child: Builder(
+              builder: (context) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8), // Extra bottom buffer
+                  child: child!,
+                );
+              },
+            ),
+          );
+        },
+        debugShowCheckedModeBanner: false,
       ),
-      home: const AuthWrapper(),
-      builder: (context, child) {
-        // Add extra padding around the entire app
-        return MediaQuery(
-          // Set a smaller text scale factor to prevent text overflow
-          data: MediaQuery.of(context).copyWith(
-            padding: MediaQuery.of(context).padding.copyWith(
-              bottom: MediaQuery.of(context).padding.bottom + 8, // Add extra bottom padding
-            ), textScaler: TextScaler.linear(0.95),
-          ),
-          child: Builder(
-            builder: (context) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8), // Extra bottom buffer
-                child: child!,
-              );
-            },
-          ),
-        );
-      },
-      debugShowCheckedModeBanner: false,
     );
   }
 }
