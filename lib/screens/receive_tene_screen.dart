@@ -7,7 +7,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/home_screen.dart';
 import 'dart:async';
-import 'package:lottie/lottie.dart';
 
 class ReceiveTeneScreen extends ConsumerStatefulWidget {
   final TeneModel tene;

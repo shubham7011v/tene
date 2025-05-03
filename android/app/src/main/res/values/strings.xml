@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tene</string>
+    <!-- Replace with your Web Client ID from Google Cloud Console -->
+    <string name="server_client_id">YOUR_WEB_CLIENT_ID_HERE</string>
+</resources> 

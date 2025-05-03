@@ -2,11 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tene/models/tene_model.dart';
 import 'package:tene/models/mood_data.dart';
+import 'package:tene/services/service_locator.dart';
 
 /// Service for handling Firebase operations related to Tenes
 class FirebaseService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // Get Firebase instances from the ServiceLocator
+  FirebaseAuth get _auth => ServiceLocator.instance.auth;
+  FirebaseFirestore get _firestore => ServiceLocator.instance.firestore;
 
   /// Get current user ID or empty string if not logged in
   String get currentUserId => _auth.currentUser?.uid ?? '';

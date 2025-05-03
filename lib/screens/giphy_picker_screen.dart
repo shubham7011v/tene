@@ -19,29 +19,33 @@ final giphyResultsProvider = FutureProvider.family<List<GiphyGif>, String>((ref,
   // Get API key from .env file
   final apiKey = dotenv.env['GIPHY_API_KEY'] ?? '';
   
-  // Throw error if API key is missing
+  // Return empty list if API key is missing instead of throwing exception
   if (apiKey.isEmpty) {
-    throw Exception('GIPHY API key not found. Please check your .env file.');
+    return [];
   }
   
-  final url = Uri.parse(
-    'https://api.giphy.com/v1/gifs/search?api_key=$apiKey&q=$query&limit=24&offset=0&rating=g'
-  );
-  
-  final response = await http.get(url);
-  
-  if (response.statusCode == 200) {
-    final data = json.decode(response.body);
-    final List<dynamic> results = data['data'];
+  try {
+    final url = Uri.parse(
+      'https://api.giphy.com/v1/gifs/search?api_key=$apiKey&q=$query&limit=24&offset=0&rating=g'
+    );
     
-    return results.map((gif) => GiphyGif(
-      id: gif['id'],
-      title: gif['title'],
-      previewUrl: gif['images']['fixed_height_small']['url'],
-      originalUrl: gif['images']['original']['url'],
-    )).toList();
-  } else {
-    throw Exception('Failed to load GIFs: ${response.statusCode}');
+    final response = await http.get(url);
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final List<dynamic> results = data['data'];
+      
+      return results.map((gif) => GiphyGif(
+        id: gif['id'],
+        title: gif['title'],
+        previewUrl: gif['images']['fixed_height_small']['url'],
+        originalUrl: gif['images']['original']['url'],
+      )).toList();
+    } else {
+      return [];
+    }
+  } catch (e) {
+    return [];
   }
 });
 

@@ -571,7 +571,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                                     children: [
                                       Text(
                                         'Feeling',
-                                        key: ValueKey<String>('feeling-${currentMood}'),
+                                        key: ValueKey<String>('feeling-$currentMood'),
                                         style: const TextStyle(
                                           fontSize: 60,
                                           fontWeight: FontWeight.bold,
@@ -588,7 +588,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                                       ),
                                       Text(
                                         moodData.name,
-                                        key: ValueKey<String>('mood-${currentMood}'),
+                                        key: ValueKey<String>('mood-$currentMood'),
                                         style: const TextStyle(
                                           fontSize: 80,
                                           fontWeight: FontWeight.bold,

@@ -1,5 +1,5 @@
-// Export all providers
-export 'app_providers.dart';
+// Main providers file for the app
+// Contains all provider implementations
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

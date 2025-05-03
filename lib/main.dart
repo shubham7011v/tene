@@ -6,29 +6,55 @@ import 'package:tene/firebase_options.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/tene_feed_screen.dart';
-import 'package:tene/screens/home_screen.dart';
 import 'package:tene/services/mood_storage_service.dart';
 import 'package:tene/screens/auth_wrapper.dart';
+import 'package:tene/services/service_locator.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Load environment variables from .env file
-  await dotenv.load(fileName: ".env");
-  
   try {
-    // Initialize Firebase with error handling
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    print("Firebase initialized successfully");
+    await dotenv.load(fileName: ".env");
   } catch (e) {
-    print("Failed to initialize Firebase: $e");
-    // Continue without Firebase for now
+    // Continue without env variables, app will use fallbacks
   }
   
+  // Safely initialize Firebase
+  final app = await _initializeFirebase();
+  
+  // Initialize service locator
+  await ServiceLocator.instance.initialize();
+  
   // Run the app with ProviderScope for Riverpod
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(const ProviderScope(
+    child: MyApp(),
+  ));
+}
+
+/// Safely initialize Firebase handling the duplicate app case
+Future<FirebaseApp?> _initializeFirebase() async {
+  try {
+    // Check if Firebase is already initialized
+    final List<FirebaseApp> apps = Firebase.apps;
+    if (apps.isNotEmpty) {
+      // Firebase is already initialized, return the existing app
+      return apps[0];
+    }
+    
+    // Initialize Firebase with the default options
+    final app = await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    return app;
+  } catch (e) {
+    // Handle initialization errors
+    if (e.toString().contains('duplicate-app')) {
+      return Firebase.app('[DEFAULT]');
+    }
+    
+    return null;
+  }
 }
 
 class MyApp extends ConsumerStatefulWidget {
@@ -64,7 +90,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     final theme = ref.watch(moodThemeProvider);
     
     return MaterialApp(
-      title: 'Tene - Phone Auth',
+      title: 'Tene - Google Sign-In',
       theme: theme.copyWith(
         // Add visualDensity to reduce paddings across the app
         visualDensity: VisualDensity.compact,
@@ -89,10 +115,9 @@ class _MyAppState extends ConsumerState<MyApp> {
         return MediaQuery(
           // Set a smaller text scale factor to prevent text overflow
           data: MediaQuery.of(context).copyWith(
-            textScaleFactor: 0.95, // Slightly reduce text scale to prevent overflow
             padding: MediaQuery.of(context).padding.copyWith(
               bottom: MediaQuery.of(context).padding.bottom + 8, // Add extra bottom padding
-            ),
+            ), textScaler: TextScaler.linear(0.95),
           ),
           child: Builder(
             builder: (context) {
