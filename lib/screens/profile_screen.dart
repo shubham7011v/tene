@@ -10,13 +10,10 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final moodData = ref.watch(currentMoodDataProvider);
     final userProfile = ref.watch(userProfileProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Your Profile',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Your Profile', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: moodData.primaryColor,
         elevation: 0,
       ),
@@ -27,10 +24,7 @@ class ProfileScreen extends ConsumerWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              moodData.primaryColor,
-              moodData.secondaryColor.withOpacity(0.7),
-            ],
+            colors: [moodData.primaryColor, moodData.secondaryColor.withValues(alpha: 0.7)],
           ),
         ),
         child: SafeArea(
@@ -39,31 +33,31 @@ class ProfileScreen extends ConsumerWidget {
               // Calculate responsive dimensions
               final maxHeight = constraints.maxHeight;
               final maxWidth = constraints.maxWidth;
-              
+
               // Calculate avatar size based on screen width
               final avatarSize = maxWidth * 0.25;
-              
+
               // Calculate font sizes based on screen width
               final titleFontSize = maxWidth * 0.06;
               final subtitleFontSize = maxWidth * 0.038;
               final bodyFontSize = maxWidth * 0.035;
-              
+
               // Calculate button height based on screen height
               final buttonHeight = maxHeight * 0.07;
-              
+
               // Calculate spacings based on screen height
               final verticalSpacing = maxHeight * 0.02;
               final sectionSpacing = maxHeight * 0.025;
               final bottomPadding = maxHeight * 0.05;
-              
+
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
-                    maxWidth * 0.05, 
-                    maxHeight * 0.03, 
-                    maxWidth * 0.05, 
-                    bottomPadding + 10.0 // Add extra fixed padding at the bottom
+                    maxWidth * 0.05,
+                    maxHeight * 0.03,
+                    maxWidth * 0.05,
+                    bottomPadding + 10.0, // Add extra fixed padding at the bottom
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -72,25 +66,38 @@ class ProfileScreen extends ConsumerWidget {
                       Hero(
                         tag: 'profileAvatar',
                         child: Container(
-                          width: avatarSize * 0.95,  // Slightly smaller
+                          width: avatarSize * 0.95, // Slightly smaller
                           height: avatarSize * 0.95, // Slightly smaller
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
+                                color: Colors.black.withValues(alpha: 0.2),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
                             ],
                           ),
                           child: ClipOval(
-                            child: userProfile['avatarUrl'] != null
-                                ? Image.network(
-                                    userProfile['avatarUrl']!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Center(
+                            child:
+                                userProfile['avatarUrl'] != null
+                                    ? Image.network(
+                                      userProfile['avatarUrl']!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (_, __, ___) => Center(
+                                            child: Text(
+                                              userProfile['initialLetter'],
+                                              style: TextStyle(
+                                                fontSize: titleFontSize,
+                                                fontWeight: FontWeight.bold,
+                                                color: moodData.primaryColor,
+                                              ),
+                                            ),
+                                          ),
+                                    )
+                                    : Center(
                                       child: Text(
                                         userProfile['initialLetter'],
                                         style: TextStyle(
@@ -100,23 +107,12 @@ class ProfileScreen extends ConsumerWidget {
                                         ),
                                       ),
                                     ),
-                                  )
-                                : Center(
-                                    child: Text(
-                                      userProfile['initialLetter'],
-                                      style: TextStyle(
-                                        fontSize: titleFontSize,
-                                        fontWeight: FontWeight.bold,
-                                        color: moodData.primaryColor,
-                                      ),
-                                    ),
-                                  ),
                           ),
                         ),
                       ),
-                      
+
                       SizedBox(height: verticalSpacing),
-                      
+
                       // Display name
                       Text(
                         userProfile['name'],
@@ -126,34 +122,34 @@ class ProfileScreen extends ConsumerWidget {
                           color: Colors.white,
                         ),
                       ),
-                      
+
                       SizedBox(height: verticalSpacing * 0.4),
-                      
+
                       // Email
                       Text(
                         FirebaseAuth.instance.currentUser?.email ?? 'No email',
                         style: TextStyle(
                           fontSize: subtitleFontSize,
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
                       ),
-                      
+
                       SizedBox(height: sectionSpacing),
-                      
+
                       // Profile editing section
                       _buildProfileSection(
-                        context, 
-                        ref, 
+                        context,
+                        ref,
                         buttonHeight: buttonHeight,
                         fontSize: bodyFontSize,
                         verticalSpacing: verticalSpacing,
                       ),
-                      
+
                       SizedBox(height: sectionSpacing),
-                      
+
                       // Stats section
                       _buildStatsSection(
-                        context, 
+                        context,
                         ref,
                         fontSize: bodyFontSize,
                         titleFontSize: subtitleFontSize,
@@ -169,9 +165,9 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
-  
+
   Widget _buildProfileSection(
-    BuildContext context, 
+    BuildContext context,
     WidgetRef ref, {
     required double buttonHeight,
     required double fontSize,
@@ -179,17 +175,14 @@ class ProfileScreen extends ConsumerWidget {
   }) {
     final moodData = ref.watch(currentMoodDataProvider);
     final userProfile = ref.watch(userProfileProvider);
-    
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(verticalSpacing),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
       ),
       child: Column(
         children: [
@@ -200,61 +193,51 @@ class ProfileScreen extends ConsumerWidget {
               final updatedProfile = Map<String, dynamic>.from(userProfile);
               updatedProfile['name'] = 'Updated User';
               ref.read(userProfileProvider.notifier).state = updatedProfile;
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Profile updated!')),
-              );
+
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Profile updated!')));
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: moodData.primaryColor,
               minimumSize: Size(double.infinity, buttonHeight),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(
               'Edit Profile',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: fontSize,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize),
             ),
           ),
-          
+
           SizedBox(height: verticalSpacing),
-          
+
           // Update photo button
           OutlinedButton(
             onPressed: () {
               // Mock functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Photo update coming soon!')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Photo update coming soon!')));
             },
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
               minimumSize: Size(double.infinity, buttonHeight),
-              side: BorderSide(color: Colors.white.withOpacity(0.5)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.5)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(
               'Update Profile Photo',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: fontSize,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: fontSize),
             ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildStatsSection(
-    BuildContext context, 
+    BuildContext context,
     WidgetRef ref, {
     required double fontSize,
     required double titleFontSize,
@@ -264,12 +247,9 @@ class ProfileScreen extends ConsumerWidget {
       width: double.infinity,
       padding: EdgeInsets.all(fontSize),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,9 +262,9 @@ class ProfileScreen extends ConsumerWidget {
               color: Colors.white,
             ),
           ),
-          
+
           SizedBox(height: rowSpacing * 1.5),
-          
+
           _buildStatRow('Tenes Sent', '42', fontSize),
           SizedBox(height: rowSpacing),
           _buildStatRow('Tenes Received', '38', fontSize),
@@ -296,27 +276,20 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
-  
+
   Widget _buildStatRow(String label, String value, double fontSize) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: TextStyle(
-            fontSize: fontSize,
-            color: Colors.white.withOpacity(0.9),
-          ),
+          style: TextStyle(fontSize: fontSize, color: Colors.white.withValues(alpha: 0.9)),
         ),
         Text(
           value,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ],
     );
   }
-} 
+}

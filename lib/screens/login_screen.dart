@@ -32,6 +32,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    // Store BuildContext in a local variable before any async calls
+    final localContext = context;
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -39,7 +42,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       final userCredential = await ref.read(authServiceProvider).signInWithGoogle();
-      
+
       // If null, the sign-in was cancelled by the user
       if (userCredential == null) {
         setState(() {
@@ -48,24 +51,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         });
         return;
       }
-      
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
+
+      if (mounted && localContext.mounted) {
+        Navigator.of(
+          localContext,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
       }
     } catch (e) {
       // Use the error formatter
       final errorMessage = SignInConfig.formatSignInError(e);
-      
+
       setState(() {
         _isLoading = false;
         _errorMessage = errorMessage;
       });
-      
+
       // Show a snackbar with error details
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted && localContext.mounted) {
+        ScaffoldMessenger.of(localContext).showSnackBar(
           SnackBar(
             content: Text('Google Sign-In failed: $errorMessage'),
             backgroundColor: Colors.red,
@@ -79,12 +82,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tene Login'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Tene Login'), elevation: 0),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -110,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
-                
+
                 // Google Sign In Button
                 ElevatedButton.icon(
                   onPressed: _isLoading ? null : _signInWithGoogle,
@@ -124,74 +124,72 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     elevation: 2,
                   ),
-                  icon: _isLoading
-                      ? Container(
-                          width: 24,
-                          height: 24,
-                          padding: const EdgeInsets.all(2.0),
-                          child: const CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.black54),
-                          ),
-                        )
-                      : Image.asset(
-                          'assets/images/google_logo.png',
-                          height: 24,
-                          errorBuilder: (context, error, stackTrace) {
-                            // Fallback to a Text 'G' if image loading fails
-                            return Container(
-                              height: 24,
-                              width: 24,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade600,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Text(
-                                'G',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                  icon:
+                      _isLoading
+                          ? Container(
+                            width: 24,
+                            height: 24,
+                            padding: const EdgeInsets.all(2.0),
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.black54),
+                            ),
+                          )
+                          : Image.asset(
+                            'assets/images/google_logo.png',
+                            height: 24,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to a Text 'G' if image loading fails
+                              return Container(
+                                height: 24,
+                                width: 24,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade600,
+                                  shape: BoxShape.circle,
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                  label: _isLoading
-                      ? const Text('Signing in...')
-                      : const Text('Sign in with Google', 
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                                child: const Text(
+                                  'G',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  label:
+                      _isLoading
+                          ? const Text('Signing in...')
+                          : const Text(
+                            'Sign in with Google',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                 ),
-                
+
                 // Error message
                 if (_errorMessage.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.error.withOpacity(0.1),
+                      color: theme.colorScheme.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       _errorMessage,
-                      style: TextStyle(
-                        color: theme.colorScheme.error,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: theme.colorScheme.error, fontSize: 14),
                       textAlign: TextAlign.center,
                     ),
                   ),
                 ],
-                
+
                 const SizedBox(height: 24),
                 // Help text
                 Text(
                   'Having trouble signing in? Make sure you have Google Play Services installed and up to date.',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -201,4 +199,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-} 
+}

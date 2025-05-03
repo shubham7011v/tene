@@ -45,6 +45,9 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
 
   // Start the countdown timer
   void _startCountdown() {
+    // Store BuildContext in a local variable before any async calls
+    final localContext = context;
+
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
         setState(() {
@@ -60,8 +63,8 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
         _markAsViewed(deleteAfterViewing: true);
 
         // Navigate back to home screen
-        if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
+        if (mounted && localContext.mounted) {
+          Navigator.of(localContext).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const HomeScreen()),
             (route) => false, // Remove all routes in the stack
           );
@@ -144,6 +147,9 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
               shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
             ),
             onPressed: () async {
+              // Store BuildContext in a local variable before any async calls
+              final localContext = context;
+
               // Cancel the timer
               _countdownTimer?.cancel();
 
@@ -151,8 +157,8 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
               await _markAsViewed(deleteAfterViewing: true);
 
               // Navigate back to home screen
-              if (mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
+              if (mounted && localContext.mounted) {
+                Navigator.of(localContext).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const HomeScreen()),
                   (route) => false,
                 );

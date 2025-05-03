@@ -23,7 +23,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   bool _isChangingMood = false;
   bool _isLoading = true;
   bool _assetsPreloaded = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +32,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       duration: const Duration(milliseconds: 1500),
     );
     _animationController?.repeat(reverse: true);
-    
+
     // Simulate loading time and then set loading to false
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) {
@@ -42,7 +42,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       }
     });
   }
-  
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -52,46 +52,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       _assetsPreloaded = true;
     }
   }
-  
+
   @override
   void dispose() {
     _animationController?.dispose();
     super.dispose();
   }
-  
+
   // Preload Lottie animations and other heavy assets
   void _preloadAssets() async {
+    // Store BuildContext in a local variable before any async calls
+    final localContext = context;
     final currentMood = ref.read(currentMoodProvider);
     final moodBackdropPath = moodLottieBackdropMap[currentMood] ?? moodLottieBackdropMap['loved']!;
-    
+
     // Preload the current mood's backdrop
-    await precacheImage(AssetImage(moodBackdropPath.replaceAll('.json', '.png')), context)
-        .catchError((_) {});
-    
+    if (mounted) {
+      await precacheImage(
+        AssetImage(moodBackdropPath.replaceAll('.json', '.png')),
+        localContext,
+      ).catchError((_) {});
+    }
+
     // Preload common animations
     await Future.delayed(const Duration(milliseconds: 100));
   }
-  
+
   // Start the Tene sending flow
   void _startTeneFlow() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const GiphyPickerScreen(),
-      ),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GiphyPickerScreen()));
   }
-  
+
   // Cycle to the next mood
   void _cycleMood() {
     if (_isChangingMood) return;
-    
+
     setState(() {
       _isChangingMood = true;
     });
-    
+
     final currentMood = ref.read(currentMoodProvider);
     final nextMood = getNextMood(currentMood);
-    
+
     // Change mood with a slight delay for animation
     Future.delayed(const Duration(milliseconds: 800), () {
       ref.read(currentMoodProvider.notifier).state = nextMood;
@@ -102,122 +104,112 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       });
     });
   }
-  
+
   // Show mood selector directly
   void _showMoodSelector() {
     final currentMood = ref.read(currentMoodProvider);
-    
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Choose Your Mood'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: GridView.count(
-            shrinkWrap: true,
-            crossAxisCount: 3,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            children: cyclableMoods.map((moodId) {
-              final mood = moodMap[moodId]!;
-              
-              return GestureDetector(
-                onTap: () {
-                  ref.read(currentMoodProvider.notifier).state = moodId;
-                  // Save the selected mood to SharedPreferences
-                  MoodStorageService.saveLastSelectedMood(moodId);
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: mood.primaryColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: currentMood == moodId 
-                      ? Border.all(
-                          color: mood.secondaryColor,
-                          width: 2,
-                        )
-                      : null,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        mood.emoji,
-                        style: const TextStyle(fontSize: 28),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        mood.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: mood.secondaryColor,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Choose Your Mood'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: GridView.count(
+                shrinkWrap: true,
+                crossAxisCount: 3,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                children:
+                    cyclableMoods.map((moodId) {
+                      final mood = moodMap[moodId]!;
+
+                      return GestureDetector(
+                        onTap: () {
+                          ref.read(currentMoodProvider.notifier).state = moodId;
+                          // Save the selected mood to SharedPreferences
+                          MoodStorageService.saveLastSelectedMood(moodId);
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: mood.primaryColor.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border:
+                                currentMood == moodId
+                                    ? Border.all(color: mood.secondaryColor, width: 2)
+                                    : null,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(mood.emoji, style: const TextStyle(fontSize: 28)),
+                              const SizedBox(height: 4),
+                              Text(
+                                mood.name,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: mood.secondaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+                      );
+                    }).toList(),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
     );
   }
-  
+
   // View all received Tenes
   void _viewAllTenes() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const TeneFeedScreen(),
-      ),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TeneFeedScreen()));
   }
-  
+
   // View a specific Tene
   void _viewTene(tene) {
     ref.read(selectedTeneProvider.notifier).state = tene;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => ReceiveTeneScreen(tene: tene),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: tene)));
   }
 
   // Show theme mode picker
   void _showThemeModePicker() {
     final currentThemeMode = ref.read(appThemeModeProvider);
     final moodData = ref.watch(currentMoodDataProvider);
-    
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Choose Theme Mode'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: AppThemeMode.values.map((mode) {
-            return RadioListTile<AppThemeMode>(
-              title: Text(mode.label),
-              value: mode,
-              groupValue: currentThemeMode,
-              activeColor: moodData.secondaryColor,
-              onChanged: (value) {
-                if (value != null) {
-                  ref.read(appThemeModeProvider.notifier).state = value;
-                  Navigator.pop(context);
-                }
-              },
-            );
-          }).toList(),
-        ),
-      ),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Choose Theme Mode'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children:
+                  AppThemeMode.values.map((mode) {
+                    return RadioListTile<AppThemeMode>(
+                      title: Text(mode.label),
+                      value: mode,
+                      groupValue: currentThemeMode,
+                      activeColor: moodData.secondaryColor,
+                      onChanged: (value) {
+                        if (value != null) {
+                          ref.read(appThemeModeProvider.notifier).state = value;
+                          Navigator.pop(context);
+                        }
+                      },
+                    );
+                  }).toList(),
+            ),
+          ),
     );
   }
 
@@ -225,103 +217,100 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   void _showNotificationSettings() {
     final notificationsEnabled = ref.read(notificationsEnabledProvider);
     final moodData = ref.watch(currentMoodDataProvider);
-    
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Notification Settings'),
-        content: SwitchListTile(
-          title: const Text('Enable Notifications'),
-          value: notificationsEnabled,
-          activeColor: moodData.secondaryColor,
-          onChanged: (value) {
-            ref.read(notificationsEnabledProvider.notifier).state = value;
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Close',
-              style: TextStyle(color: moodData.secondaryColor),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Notification Settings'),
+            content: SwitchListTile(
+              title: const Text('Enable Notifications'),
+              value: notificationsEnabled,
+              activeColor: moodData.secondaryColor,
+              onChanged: (value) {
+                ref.read(notificationsEnabledProvider.notifier).state = value;
+              },
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Close', style: TextStyle(color: moodData.secondaryColor)),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   // Show settings menu
   void _showSettingsMenu() {
     final moodData = ref.watch(currentMoodDataProvider);
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildSettingsItem(
-              icon: Icons.person,
-              label: 'Your Profile',
-              color: moodData.primaryColor,
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                );
-              },
+      builder:
+          (context) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildSettingsItem(
+                  icon: Icons.person,
+                  label: 'Your Profile',
+                  color: moodData.primaryColor,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                    );
+                  },
+                ),
+                _buildSettingsItem(
+                  icon: Icons.palette,
+                  label: 'Theme Mode',
+                  color: moodData.primaryColor,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showThemeModePicker();
+                  },
+                ),
+                _buildSettingsItem(
+                  icon: Icons.notifications,
+                  label: 'Notification Settings',
+                  color: moodData.primaryColor,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showNotificationSettings();
+                  },
+                ),
+                _buildSettingsItem(
+                  icon: Icons.history,
+                  label: 'Tene History (dev)',
+                  color: moodData.primaryColor,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _viewAllTenes();
+                  },
+                ),
+                _buildSettingsItem(
+                  icon: Icons.logout,
+                  label: 'Logout',
+                  color: Colors.red.shade400,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await FirebaseAuth.instance.signOut();
+                  },
+                ),
+              ],
             ),
-            _buildSettingsItem(
-              icon: Icons.palette,
-              label: 'Theme Mode',
-              color: moodData.primaryColor,
-              onTap: () {
-                Navigator.pop(context);
-                _showThemeModePicker();
-              },
-            ),
-            _buildSettingsItem(
-              icon: Icons.notifications,
-              label: 'Notification Settings',
-              color: moodData.primaryColor,
-              onTap: () {
-                Navigator.pop(context);
-                _showNotificationSettings();
-              },
-            ),
-            _buildSettingsItem(
-              icon: Icons.history,
-              label: 'Tene History (dev)',
-              color: moodData.primaryColor,
-              onTap: () {
-                Navigator.pop(context);
-                _viewAllTenes();
-              },
-            ),
-            _buildSettingsItem(
-              icon: Icons.logout,
-              label: 'Logout',
-              color: Colors.red.shade400,
-              onTap: () async {
-                Navigator.pop(context);
-                await FirebaseAuth.instance.signOut();
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
-  
+
   // Build settings menu item
   Widget _buildSettingsItem({
     required IconData icon,
@@ -333,17 +322,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       leading: Icon(icon, color: color),
       title: Text(
         label,
-        style: TextStyle(
-          color: Colors.grey.shade800,
-          fontWeight: FontWeight.w500,
-        ),
+        style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w500),
       ),
       onTap: onTap,
-      trailing: const Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: Colors.grey,
-      ),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
     );
   }
 
@@ -356,38 +338,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     final tenesAsync = ref.watch(unviewedTenesProvider);
     final userProfile = ref.watch(userProfileProvider);
     final currentMood = ref.watch(currentMoodProvider);
-    
+
     // Winter theme colors
     final lightBlue = const Color(0xFFAEC6CF);
     final snowBlue = const Color(0xFFCDE1F0);
     final deepBlue = const Color(0xFF6A8CAF);
-    
+
     // Loading placeholder
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: moodData.primaryColor.withOpacity(0.3),
+        backgroundColor: moodData.primaryColor.withValues(alpha: 0.3),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(deepBlue),
-              ),
+              CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(deepBlue)),
               const SizedBox(height: 20),
               Text(
                 'Loading Tene...',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: deepBlue,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: deepBlue),
               ),
             ],
           ),
         ),
       );
     }
-    
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -399,13 +375,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 32,
-            shadows: [
-              Shadow(
-                color: Colors.black26,
-                blurRadius: 4,
-                offset: Offset(1, 1),
-              ),
-            ],
+            shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 1))],
           ),
         ),
         actions: [
@@ -418,7 +388,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -427,33 +397,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 child: Hero(
                   tag: 'profileAvatar',
                   child: CircleAvatar(
-                    backgroundColor: deepBlue.withOpacity(0.8),
+                    backgroundColor: deepBlue.withValues(alpha: 0.8),
                     radius: 24,
-                    child: userProfile['avatarUrl'] != null
-                        ? ClipOval(
-                            child: Image.network(
-                              userProfile['avatarUrl']!,
-                              width: 48,
-                              height: 48,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Text(
-                                userProfile['initialLetter'],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                ),
+                    child:
+                        userProfile['avatarUrl'] != null
+                            ? ClipOval(
+                              child: Image.network(
+                                userProfile['avatarUrl']!,
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) => Text(
+                                      userProfile['initialLetter'],
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
+                                      ),
+                                    ),
+                              ),
+                            )
+                            : Text(
+                              userProfile['initialLetter'],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
                               ),
                             ),
-                          )
-                        : Text(
-                            userProfile['initialLetter'],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                          ),
                   ),
                 ),
               ),
@@ -465,7 +437,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         builder: (context, constraints) {
           final maxWidth = constraints.maxWidth;
           final maxHeight = constraints.maxHeight;
-          
+
           return Stack(
             children: [
               // Animated Mood Background
@@ -486,9 +458,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            moodData.primaryColor.withOpacity(0.6),
-                            moodData.secondaryColor.withOpacity(0.4),
-                            Colors.white.withOpacity(0.8),
+                            moodData.primaryColor.withValues(alpha: 0.6),
+                            moodData.secondaryColor.withValues(alpha: 0.4),
+                            Colors.white.withValues(alpha: 0.8),
                           ],
                         ),
                       ),
@@ -496,7 +468,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   },
                 ),
               ),
-              
+
               // Gradient overlay for better text readability
               Positioned.fill(
                 child: Container(
@@ -505,14 +477,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withOpacity(0.0),
-                        Colors.black.withOpacity(0.2),
+                        Colors.black.withValues(alpha: 0.0),
+                        Colors.black.withValues(alpha: 0.2),
                       ],
                     ),
                   ),
                 ),
               ),
-              
+
               // Main content
               SafeArea(
                 child: Column(
@@ -530,17 +502,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                             fontWeight: FontWeight.w500,
                             color: Colors.white,
                             shadows: [
-                              Shadow(
-                                color: Colors.black54,
-                                offset: Offset(1, 1),
-                                blurRadius: 3,
-                              ),
+                              Shadow(color: Colors.black54, offset: Offset(1, 1), blurRadius: 3),
                             ],
                           ),
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      
+
                     // Mood Display Area (Full screen tap target)
                     Expanded(
                       flex: 1,
@@ -564,70 +532,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                                   ),
                                 );
                               },
-                              child: _isChangingMood
-                                ? const SizedBox(height: 80)
-                                : Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Feeling',
-                                        key: ValueKey<String>('feeling-$currentMood'),
-                                        style: const TextStyle(
-                                          fontSize: 60,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF2D4A6D),
-                                          shadows: [
-                                            Shadow(
-                                              color: Colors.white,
-                                              offset: Offset(1, 1),
-                                              blurRadius: 5,
+                              child:
+                                  _isChangingMood
+                                      ? const SizedBox(height: 80)
+                                      : Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Feeling',
+                                            key: ValueKey<String>('feeling-$currentMood'),
+                                            style: const TextStyle(
+                                              fontSize: 60,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF2D4A6D),
+                                              shadows: [
+                                                Shadow(
+                                                  color: Colors.white,
+                                                  offset: Offset(1, 1),
+                                                  blurRadius: 5,
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      Text(
-                                        moodData.name,
-                                        key: ValueKey<String>('mood-$currentMood'),
-                                        style: const TextStyle(
-                                          fontSize: 80,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF2D4A6D),
-                                          shadows: [
-                                            Shadow(
-                                              color: Colors.white,
-                                              offset: Offset(1, 1),
-                                              blurRadius: 5,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          Text(
+                                            moodData.name,
+                                            key: ValueKey<String>('mood-$currentMood'),
+                                            style: const TextStyle(
+                                              fontSize: 80,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF2D4A6D),
+                                              shadows: [
+                                                Shadow(
+                                                  color: Colors.white,
+                                                  offset: Offset(1, 1),
+                                                  blurRadius: 5,
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'Tap to choose mood\nDouble tap to cycle',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: moodData.secondaryColor.withOpacity(0.9),
-                                          fontWeight: FontWeight.w500,
-                                          shadows: [
-                                            Shadow(
-                                              color: Colors.white,
-                                              offset: Offset(0.5, 0.5),
-                                              blurRadius: 2,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'Tap to choose mood\nDouble tap to cycle',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              color: moodData.secondaryColor.withValues(alpha: 0.9),
+                                              fontWeight: FontWeight.w500,
+                                              shadows: [
+                                                Shadow(
+                                                  color: Colors.white,
+                                                  offset: Offset(0.5, 0.5),
+                                                  blurRadius: 2,
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                        textAlign: TextAlign.center,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                      
+
                     // Tene Feed Preview Section
                     Expanded(
                       flex: 1,
@@ -636,21 +605,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                         child: tenesAsync.when(
                           data: (tenes) {
                             final previewTenes = tenes.length > 3 ? tenes.sublist(0, 3) : tenes;
-                            
+
                             return previewTenes.isEmpty
                                 ? _buildEmptyFeedPreview()
                                 : _buildTenePreviewList(previewTenes);
                           },
-                          loading: () => Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(deepBlue),
-                            ),
-                          ),
+                          loading:
+                              () => Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(deepBlue),
+                                ),
+                              ),
                           error: (_, __) => _buildEmptyFeedPreview(),
                         ),
                       ),
                     ),
-                    
+
                     // Space for floating buttons
                     SizedBox(height: maxHeight * 0.05),
                   ],
@@ -658,88 +628,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               ),
             ],
           );
-        }
+        },
       ),
-      
+
       // Centered send icon FAB
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton:  GestureDetector(
-            onTap: _startTeneFlow,
-            child: Lottie.asset(
-              height: 100,
-              'assets/animations/send_icon_blue.json',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => 
-              const Icon(Icons.send, color: Colors.white),
-            ),
-          )
+      floatingActionButton: GestureDetector(
+        onTap: _startTeneFlow,
+        child: Lottie.asset(
+          height: 100,
+          'assets/animations/send_icon_blue.json',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => const Icon(Icons.send, color: Colors.white),
+        ),
+      ),
     );
   }
-  
+
   // Build empty feed preview
   Widget _buildEmptyFeedPreview() {
     final moodData = ref.watch(currentMoodDataProvider);
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 16),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.6),
+        color: Colors.white.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            spreadRadius: 0,
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, spreadRadius: 0),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.mail_outline,
-            size: 48,
-            color: moodData.secondaryColor.withOpacity(0.7),
-          ),
+          Icon(Icons.mail_outline, size: 48, color: moodData.secondaryColor.withValues(alpha: 0.7)),
           const SizedBox(height: 16),
           const Text(
             'Your vibe inbox is empty',
-            style: TextStyle(
-              color: Color(0xFF2D4A6D),
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: TextStyle(color: Color(0xFF2D4A6D), fontWeight: FontWeight.bold, fontSize: 18),
           ),
           const SizedBox(height: 8),
           const Text(
             'When friends send you Tenes, they will appear here',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF5A7A99),
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Color(0xFF5A7A99), fontSize: 14),
           ),
           const SizedBox(height: 20),
           TextButton(
             onPressed: _viewAllTenes,
-            style: TextButton.styleFrom(
-              foregroundColor: moodData.secondaryColor,
-            ),
+            style: TextButton.styleFrom(foregroundColor: moodData.secondaryColor),
             child: const Text(
               'View All Tenes',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
             ),
           ),
         ],
       ),
     );
   }
-  
+
   // Build Tene preview list
   Widget _buildTenePreviewList(List tenes) {
     return Column(
@@ -753,13 +702,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2D4A6D),
-              shadows: [
-                Shadow(
-                  color: Colors.white,
-                  offset: Offset(1, 1),
-                  blurRadius: 2,
-                ),
-              ],
+              shadows: [Shadow(color: Colors.white, offset: Offset(1, 1), blurRadius: 2)],
             ),
           ),
         ),
@@ -783,13 +726,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'View All',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
+                Text('View All', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                 SizedBox(width: 4),
                 Icon(Icons.arrow_forward_ios, size: 12),
               ],
@@ -799,19 +736,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       ],
     );
   }
-  
+
   // Build individual Tene card
   Widget _buildTeneCard(tene) {
     final moodColor = moodMap[tene.moodId]?.primaryColor ?? Colors.purple;
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      color: Colors.white.withOpacity(0.7),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white.withValues(alpha: 0.7),
       elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: Colors.black.withValues(alpha: 0.1),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => _viewTene(tene),
@@ -825,17 +760,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 height: 50,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: moodColor.withOpacity(0.2),
+                  color: moodColor.withValues(alpha: 0.2),
                 ),
-                child: Center(
-                  child: Text(
-                    tene.moodEmoji,
-                    style: const TextStyle(fontSize: 24),
-                  ),
-                ),
+                child: Center(child: Text(tene.moodEmoji, style: const TextStyle(fontSize: 24))),
               ),
               const SizedBox(width: 16),
-              
+
               // Tene content
               Expanded(
                 child: Column(
@@ -851,25 +781,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     ),
                     Text(
                       timeago.format(tene.timestamp),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade700,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
                     ),
                   ],
                 ),
               ),
-              
+
               // Arrow icon
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: Color(0xFF6A8CAF),
-                size: 14,
-              ),
+              const Icon(Icons.arrow_forward_ios, color: Color(0xFF6A8CAF), size: 14),
             ],
           ),
         ),
       ),
     );
   }
-} 
+}

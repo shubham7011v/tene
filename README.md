@@ -1,47 +1,96 @@
 # Tene App
 
-A Flutter application with mood-based UI and GIPHY integration.
+A Flutter application for sharing mood-based messages with friends. Tene lets users send emotional messages with custom backgrounds using GIPHY integration and Firebase backend.
 
-## Environment Setup
+![Tene App Banner](https://example.com/banner-image.png)
 
-### API Keys
+## 📱 Features
 
-This app uses environment variables to securely store API keys. To set up:
+- **Mood-Based Messaging**: Send messages with different emotion-based themes
+- **GIF Integration**: Add GIPHY GIFs to enhance your messages
+- **Real-time Updates**: Firebase Firestore integration for instant message delivery
+- **Secure Authentication**: Firebase Authentication for user management
+- **Responsive Design**: Works on iOS and Android devices
 
-1. Create a file named `.env` in the root project directory
-2. Add your GIPHY API key to the file in the following format:
+## 🚀 Getting Started
 
+### Prerequisites
+
+- Flutter SDK (3.19.x or later)
+- Dart SDK (3.0.0 or later)
+- Firebase account
+- GIPHY Developer API key
+
+### Installation
+
+1. Clone the repository
+   ```bash
+   git clone https://github.com/your-username/tene.git
+   cd tene
+   ```
+
+2. Install dependencies
+   ```bash
+   flutter pub get
+   ```
+
+3. Set up environment variables
+   - Create a `.env` file in the root directory
+   - Add your GIPHY API key:
+     ```
+     GIPHY_API_KEY=your_api_key_here
+     ```
+
+4. Connect to Firebase
+   - Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+   - Enable Firestore, Authentication, and Storage
+   - Download the `google-services.json` (for Android) and `GoogleService-Info.plist` (for iOS)
+   - Place them in the appropriate directories
+
+5. Run the app
+   ```bash
+   flutter run
+   ```
+
+## 📚 Documentation
+
+- [Project Structure](./docs/PROJECT_STRUCTURE.md) - Overview of the project architecture
+- [Development Guide](./docs/DEVELOPMENT_GUIDE.md) - Guidelines for development
+- [API Reference](./docs/API_REFERENCE.md) - Reference for data models and services
+- [Firebase Setup](./GITHUB_WORKFLOW_SETUP.md) - Instructions for Firebase configuration and CI/CD
+- [Environment Setup](./ENVIRONMENT.md) - Details on environment configuration
+- [VS Code Setup](./VSCODE.md) - VS Code editor configuration for the project
+- [Git Workflow](./GIT.md) - Git best practices for the project
+
+## 🧪 Testing
+
+Run tests with:
+
+```bash
+flutter test
 ```
-GIPHY_API_KEY=your_api_key_here
-```
 
-3. Replace `your_api_key_here` with your actual GIPHY API key
-4. Get a GIPHY API key from: https://developers.giphy.com/dashboard/
+## 🔒 Security Rules
 
-### Important Security Notes
+Firebase security rules are managed in the `firestore.rules` file. CI/CD pipelines automatically deploy these rules when changes are pushed to the main branch.
 
-- **NEVER** commit your `.env` file to version control
-- The `.env` file is included in `.gitignore` to prevent accidental commits
-- For team members, share the format but not the actual API keys
+## 🛠️ Built With
 
-## Running the App
+- [Flutter](https://flutter.dev/) - UI framework
+- [Firebase](https://firebase.google.com/) - Backend and authentication
+- [Provider](https://pub.dev/packages/provider) - State management
+- [GIPHY SDK](https://developers.giphy.com/) - GIF integration
 
-1. Make sure you have set up the `.env` file as described above
-2. Run the app with:
+## 📝 License
 
-```
-flutter run
-```
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Getting Started
+## 👥 Contributors
 
-This project is a starting point for a Flutter application.
+- Your Name - *Initial work* - [YourGitHub](https://github.com/yourusername)
 
-A few resources to get you started if this is your first Flutter project:
+## 🙏 Acknowledgments
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- [Flutter Team](https://flutter.dev/team)
+- [Firebase](https://firebase.google.com/)
+- [GIPHY](https://giphy.com/)
