@@ -1,26 +1,29 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow authenticated users to view and upload their own files
-    match /users/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Allow authenticated users to view tene media
-    match /tenes/{teneId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      // Only allow upload if they're creating a new tene
-      allow create: if request.auth != null && 
-                    request.resource.size < 5 * 1024 * 1024 && // 5MB max
-                    (request.resource.contentType.matches('image/.*') || 
-                     request.resource.contentType.matches('video/.*'));
-      // Only allow delete if they sent the tene
-      allow delete: if request.auth != null;
-    }
-    
-    // Default deny
+    // Only allow authenticated users to read/write
     match /{allPaths=**} {
-      allow read, write: if false;
+      allow read, write: if request.auth != null;
+    }
+    
+    // User profile images
+    match /users/{userId}/profile/{fileName} {
+      // Allow public read access for profile photos
+      allow read: if true;
+      // Only allow the user to upload their own photos
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Message attachments
+    match /tenes/{teneId}/{fileName} {
+      // Allow sender or recipient to read
+      allow read: if request.auth != null && (
+        resource.metadata.senderId == request.auth.uid ||
+        resource.metadata.recipientId == request.auth.uid
+      );
+      // Only allow the sender to write
+      allow write: if request.auth != null && 
+        request.resource.metadata.senderId == request.auth.uid;
     }
   }
 } 

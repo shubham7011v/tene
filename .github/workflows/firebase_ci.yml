@@ -1,0 +1,58 @@
+name: Firebase and Flutter CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.19.x"
+          channel: "stable"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze code
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 7
+
+      - name: Set up Node.js for Firebase
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18.x"
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Create .env.prod file (if needed)
+        run: |
+          if [ "${{ secrets.ENV_PROD }}" != "" ]; then
+            echo "${{ secrets.ENV_PROD }}" > .env.prod
+          fi
+
+      - name: Deploy Firestore Rules
+        if: github.ref == 'refs/heads/main' # Only deploy on main branch
+        run: firebase deploy --only firestore:rules --token ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
