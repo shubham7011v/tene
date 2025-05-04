@@ -3,21 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:tene/providers/providers.dart';
-import 'package:tene/models/mood_data.dart';
-
-/// Create a TeneService class to handle sending Tenes
-class TeneService {
-  static Future<bool> sendTene({
-    required String phoneNumber,
-    required String moodName,
-    required String gifUrl,
-  }) async {
-    // In a real app, this would send data to a backend
-    // For now, we'll just simulate a successful send with a delay
-    await Future.delayed(const Duration(seconds: 1));
-    return true;
-  }
-}
+import 'package:tene/services/tene_service.dart' hide teneServiceProvider;
+import 'package:tene/screens/home_screen.dart';
 
 // State provider for contact search query
 final contactSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -31,17 +18,14 @@ final contactPermissionProvider = StateProvider<PermissionStatus>((ref) {
 final filteredContactsProvider = FutureProvider<List<Contact>>((ref) async {
   final permissionStatus = ref.watch(contactPermissionProvider);
   final searchQuery = ref.watch(contactSearchQueryProvider).toLowerCase();
-  
+
   if (permissionStatus != PermissionStatus.granted) {
     return [];
   }
-  
+
   // Fetch all contacts with phone numbers
-  final contacts = await FlutterContacts.getContacts(
-    withProperties: true, 
-    withThumbnail: false,
-  );
-  
+  final contacts = await FlutterContacts.getContacts(withProperties: true, withThumbnail: false);
+
   // Filter contacts based on search query
   if (searchQuery.isEmpty) {
     return contacts.where((contact) => contact.phones.isNotEmpty).toList();
@@ -54,355 +38,326 @@ final filteredContactsProvider = FutureProvider<List<Contact>>((ref) async {
 });
 
 class ContactPickerScreen extends ConsumerStatefulWidget {
-  const ContactPickerScreen({super.key});
+  final String gifUrl;
+
+  const ContactPickerScreen({super.key, required this.gifUrl});
 
   @override
   ConsumerState<ContactPickerScreen> createState() => _ContactPickerScreenState();
 }
 
 class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  
+  bool _isSending = false;
+  String? _selectedPhone;
+  String? _errorMessage;
+  final _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
-    _checkPermission();
+    _checkContactPermission();
   }
-  
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
-  
-  // Check if we have contacts permission
-  Future<void> _checkPermission() async {
+
+  // Check and request contact permission
+  Future<void> _checkContactPermission() async {
     final status = await Permission.contacts.status;
     ref.read(contactPermissionProvider.notifier).state = status;
-    
-    // Request permission if not granted
+
     if (status != PermissionStatus.granted) {
-      await _requestPermission();
+      final result = await Permission.contacts.request();
+      ref.read(contactPermissionProvider.notifier).state = result;
     }
   }
-  
-  // Request contacts permission
-  Future<void> _requestPermission() async {
-    final status = await Permission.contacts.request();
-    ref.read(contactPermissionProvider.notifier).state = status;
-  }
-  
-  // Extract the Tene sending logic to a new method
-  Future<void> _sendTeneToContact(String phoneNumber, MoodData mood, String? gifUrl) async {
-    if (!mounted) return;
-    
-    // Show loading indicator
-    _showLoadingDialog(mood);
-    
-    // Call service to send Tene
-    await TeneService.sendTene(
-      phoneNumber: phoneNumber,
-      moodName: mood.name,
-      gifUrl: gifUrl ?? '',
-    );
-    
-    // Check if still mounted before UI updates
-    if (!mounted) return;
-    
-    // Close loading dialog and show result
-    Navigator.of(context).pop();
-    
-    // Show success
-    _showSuccessDialog(phoneNumber, mood);
+
+  // Handle contact selection
+  void _selectContact(String phone) {
+    setState(() {
+      _selectedPhone = phone;
+      _errorMessage = null;
+    });
   }
 
-  // Show loading dialog
-  void _showLoadingDialog(MoodData mood) {
+  // Update search query
+  void _updateSearchQuery(String query) {
+    ref.read(contactSearchQueryProvider.notifier).state = query;
+  }
+
+  // Send Tene using phone number
+  Future<void> _sendTene() async {
+    if (_selectedPhone == null) {
+      setState(() {
+        _errorMessage = 'Please select a contact';
+      });
+      return;
+    }
+
+    setState(() {
+      _isSending = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Check if user is logged in
+      final authState = ref.read(authStateProvider).value;
+      if (authState == null) {
+        setState(() {
+          _errorMessage = 'You must be logged in to send a Tene';
+          _isSending = false;
+        });
+        return;
+      }
+
+      // Ensure user has a phone number
+      if (authState.phoneNumber == null || authState.phoneNumber!.isEmpty) {
+        setState(() {
+          _errorMessage = 'Your account must have a phone number to send Tenes';
+          _isSending = false;
+        });
+        return;
+      }
+
+      // Send the Tene using TeneService
+      await ref
+          .read(teneServiceProvider)
+          .sendTene(
+            toPhone: _selectedPhone!,
+            vibeType: ref.read(currentMoodProvider),
+            gifUrl: widget.gifUrl,
+          );
+
+      if (mounted) {
+        _showSuccessDialog();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error: ${e.toString()}';
+          _isSending = false;
+        });
+      }
+    }
+  }
+
+  void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(mood.secondaryColor),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Tene Sent!'),
+            content: const Text('Your vibe has been sent successfully.'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close dialog
+                  // Return to home screen
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    (route) => false,
+                  );
+                },
+                child: const Text('GREAT!'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final moodData = ref.watch(currentMoodDataProvider);
+    final permissionStatus = ref.watch(contactPermissionProvider);
+    final contactsAsync = ref.watch(filteredContactsProvider);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Select Contact'), backgroundColor: moodData.primaryColor),
+      body: Stack(
+        children: [
+          // Background
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  moodData.primaryColor.withAlpha(40),
+                  moodData.secondaryColor.withAlpha(20),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            const Text('Sending your Tene...'),
-          ],
-        ),
+          ),
+
+          // Content
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Who do you want to send your vibe to?',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: moodData.secondaryColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search contacts...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  onChanged: _updateSearchQuery,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Permission status
+              if (permissionStatus != PermissionStatus.granted)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.contact_phone, size: 48),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Contact permission required',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Please grant permission to access your contacts',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _checkContactPermission,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: moodData.secondaryColor,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Grant Permission'),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Contacts list
+              Expanded(
+                child: contactsAsync.when(
+                  data: (contacts) {
+                    if (contacts.isEmpty) {
+                      return const Center(child: Text('No contacts found'));
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(16.0),
+                      itemCount: contacts.length,
+                      itemBuilder: (context, index) {
+                        final contact = contacts[index];
+                        final phone = contact.phones.isNotEmpty ? contact.phones.first.number : '';
+
+                        return _buildContactItem(phone, contact.displayName, phone);
+                      },
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) => Center(child: Text('Error: $error')),
+                ),
+              ),
+
+              // Error message
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
+              // Send button
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ElevatedButton(
+                  onPressed: _isSending ? null : _sendTene,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: moodData.secondaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    minimumSize: const Size(double.infinity, 56),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child:
+                      _isSending
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('SEND TENE', style: TextStyle(fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  // Show success dialog
-  void _showSuccessDialog(String phoneNumber, MoodData mood) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Tene Sent!'),
-        content: Text('Your mood "${mood.name}" ${mood.emoji} was sent to $phoneNumber with a GIF!'),
-        backgroundColor: mood.primaryColor.withAlpha(240),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // Navigate back to the home screen
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  @override
-  Widget build(BuildContext context) {
-    final permissionStatus = ref.watch(contactPermissionProvider);
-    final searchQuery = ref.watch(contactSearchQueryProvider);
-    final contactsAsync = ref.watch(filteredContactsProvider);
+  Widget _buildContactItem(String id, String name, String phoneNumber) {
+    final isSelected = _selectedPhone == id;
     final moodData = ref.watch(currentMoodDataProvider);
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select Contact'),
-        backgroundColor: moodData.primaryColor,
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isSelected ? BorderSide(color: moodData.secondaryColor, width: 2) : BorderSide.none,
       ),
-      body: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                fillColor: moodData.primaryColor.withAlpha(26),
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _selectContact(id),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: moodData.primaryColor.withAlpha(50),
+                child: Text(
+                  name.isNotEmpty ? name[0] : '?',
+                  style: TextStyle(color: moodData.secondaryColor, fontWeight: FontWeight.bold),
                 ),
-                hintText: 'Search contacts...',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          ref.read(contactSearchQueryProvider.notifier).state = '';
-                        },
-                      )
-                    : null,
               ),
-              onChanged: (value) {
-                ref.read(contactSearchQueryProvider.notifier).state = value;
-              },
-            ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(phoneNumber, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+                  ],
+                ),
+              ),
+              isSelected
+                  ? Icon(Icons.check_circle, color: moodData.secondaryColor)
+                  : const Icon(Icons.circle_outlined, color: Colors.grey),
+            ],
           ),
-          
-          // Permission handling and contact list
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                // Handle permission denied/restricted cases
-                if (permissionStatus == PermissionStatus.denied ||
-                    permissionStatus == PermissionStatus.restricted ||
-                    permissionStatus == PermissionStatus.permanentlyDenied) {
-                  return _buildPermissionDenied(moodData);
-                }
-                
-                // Handle contact list
-                return contactsAsync.when(
-                  data: (contacts) {
-                    if (contacts.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.contacts,
-                              size: 64,
-                              color: moodData.secondaryColor.withAlpha(128),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              searchQuery.isEmpty
-                                  ? 'No contacts found with phone numbers'
-                                  : 'No contacts match "$searchQuery"',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: moodData.secondaryColor,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    
-                    return ListView.builder(
-                      itemCount: contacts.length,
-                      itemBuilder: (context, index) {
-                        final contact = contacts[index];
-                        final hasPhoneNumber = contact.phones.isNotEmpty;
-                        final phoneNumber = hasPhoneNumber 
-                            ? contact.phones.first.number 
-                            : '';
-                        
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: moodData.primaryColor,
-                            child: Text(
-                              _getInitials(contact.displayName),
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                          title: Text(contact.displayName),
-                          subtitle: Text(phoneNumber),
-                          onTap: () {
-                            // Save the selected contact
-                            ref.read(selectedContactProvider.notifier).state = phoneNumber;
-                            
-                            // Get the mood and GIF
-                            final mood = ref.read(currentMoodDataProvider);
-                            final gifUrl = ref.read(selectedGifProvider);
-                            
-                            // Send the Tene with proper context handling
-                            _sendTeneToContact(phoneNumber, mood, gifUrl);
-                          },
-                        );
-                      },
-                    );
-                  },
-                  loading: () => Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            moodData.secondaryColor,
-                          ),
-                          backgroundColor: moodData.primaryColor.withAlpha(51),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Loading contacts...',
-                          style: TextStyle(
-                            color: moodData.secondaryColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  error: (error, stackTrace) => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            color: moodData.secondaryColor,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error loading contacts: ${error.toString()}',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: moodData.secondaryColor,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () {
-                              ref.invalidate(filteredContactsProvider);
-                            },
-                            child: const Text('Try Again'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  // Build UI for when permission is denied
-  Widget _buildPermissionDenied(MoodData moodData) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.no_accounts,
-              size: 72,
-              color: moodData.secondaryColor.withAlpha(128),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Contact Permission Required',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: moodData.secondaryColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'To select a contact, we need permission to access your contacts. '
-              'Please grant this permission in your device settings.',
-              style: const TextStyle(fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () async {
-                final status = await Permission.contacts.request();
-                ref.read(contactPermissionProvider.notifier).state = status;
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: moodData.secondaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: const Text('Grant Permission'),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () {
-                openAppSettings();
-              },
-              child: Text(
-                'Open Settings',
-                style: TextStyle(color: moodData.secondaryColor),
-              ),
-            ),
-          ],
         ),
       ),
     );
   }
-  
-  // Helper to get initials from a name
-  String _getInitials(String name) {
-    if (name.isEmpty) return '?';
-    
-    final nameParts = name.split(' ');
-    if (nameParts.length > 1) {
-      return '${nameParts[0][0]}${nameParts[1][0]}'.toUpperCase();
-    } else {
-      return name[0].toUpperCase();
-    }
-  }
-} 
+}

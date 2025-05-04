@@ -15,32 +15,36 @@ final searchQueryProvider = StateProvider<String>((ref) {
 
 final giphyResultsProvider = FutureProvider.family<List<GiphyGif>, String>((ref, query) async {
   if (query.isEmpty) return [];
-  
+
   // Get API key from .env file
   final apiKey = dotenv.env['GIPHY_API_KEY'] ?? '';
-  
+
   // Return empty list if API key is missing instead of throwing exception
   if (apiKey.isEmpty) {
     return [];
   }
-  
+
   try {
     final url = Uri.parse(
-      'https://api.giphy.com/v1/gifs/search?api_key=$apiKey&q=$query&limit=24&offset=0&rating=g'
+      'https://api.giphy.com/v1/gifs/search?api_key=$apiKey&q=$query&limit=24&offset=0&rating=g',
     );
-    
+
     final response = await http.get(url);
-    
+
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       final List<dynamic> results = data['data'];
-      
-      return results.map((gif) => GiphyGif(
-        id: gif['id'],
-        title: gif['title'],
-        previewUrl: gif['images']['fixed_height_small']['url'],
-        originalUrl: gif['images']['original']['url'],
-      )).toList();
+
+      return results
+          .map(
+            (gif) => GiphyGif(
+              id: gif['id'],
+              title: gif['title'],
+              previewUrl: gif['images']['fixed_height_small']['url'],
+              originalUrl: gif['images']['original']['url'],
+            ),
+          )
+          .toList();
     } else {
       return [];
     }
@@ -76,10 +80,8 @@ class _GiphyPickerScreenState extends ConsumerState<GiphyPickerScreen> {
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController(
-      text: ref.read(currentMoodDataProvider).name,
-    );
-    
+    _searchController = TextEditingController(text: ref.read(currentMoodDataProvider).name);
+
     // Initialize search
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(searchQueryProvider.notifier).state = _searchController.text;
@@ -104,12 +106,9 @@ class _GiphyPickerScreenState extends ConsumerState<GiphyPickerScreen> {
     final query = ref.watch(searchQueryProvider);
     final gifsAsync = ref.watch(giphyResultsProvider(query));
     final moodData = ref.watch(currentMoodDataProvider);
-    
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Find a GIF'),
-        backgroundColor: moodData.primaryColor,
-      ),
+      appBar: AppBar(title: const Text('Find a GIF'), backgroundColor: moodData.primaryColor),
       body: Column(
         children: [
           // Search bar
@@ -138,7 +137,7 @@ class _GiphyPickerScreenState extends ConsumerState<GiphyPickerScreen> {
               textInputAction: TextInputAction.search,
             ),
           ),
-          
+
           // GIF grid
           Expanded(
             child: gifsAsync.when(
@@ -146,14 +145,12 @@ class _GiphyPickerScreenState extends ConsumerState<GiphyPickerScreen> {
                 if (gifs.isEmpty) {
                   return Center(
                     child: Text(
-                      query.isEmpty
-                          ? 'Enter a search term'
-                          : 'No GIFs found for "$query"',
+                      query.isEmpty ? 'Enter a search term' : 'No GIFs found for "$query"',
                       style: const TextStyle(fontSize: 16),
                     ),
                   );
                 }
-                
+
                 return GridView.builder(
                   padding: const EdgeInsets.all(12.0),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -168,18 +165,14 @@ class _GiphyPickerScreenState extends ConsumerState<GiphyPickerScreen> {
                     return GestureDetector(
                       onTap: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => GiphyPreviewScreen(gif: gif),
-                          ),
+                          MaterialPageRoute(builder: (context) => GiphyPreviewScreen(gif: gif)),
                         );
                       },
                       child: Container(
                         decoration: BoxDecoration(
                           color: moodData.primaryColor.withAlpha(26),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: moodData.primaryColor.withAlpha(77),
-                          ),
+                          border: Border.all(color: moodData.primaryColor.withAlpha(77)),
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(11),
@@ -190,10 +183,11 @@ class _GiphyPickerScreenState extends ConsumerState<GiphyPickerScreen> {
                               if (loadingProgress == null) return child;
                               return Center(
                                 child: CircularProgressIndicator(
-                                  value: loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          (loadingProgress.expectedTotalBytes ?? 1)
-                                      : null,
+                                  value:
+                                      loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded /
+                                              (loadingProgress.expectedTotalBytes ?? 1)
+                                          : null,
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                     moodData.secondaryColor,
                                   ),
@@ -203,10 +197,7 @@ class _GiphyPickerScreenState extends ConsumerState<GiphyPickerScreen> {
                             },
                             errorBuilder: (context, error, stackTrace) {
                               return Center(
-                                child: Icon(
-                                  Icons.broken_image,
-                                  color: moodData.secondaryColor,
-                                ),
+                                child: Icon(Icons.broken_image, color: moodData.secondaryColor),
                               );
                             },
                           ),
@@ -216,57 +207,51 @@ class _GiphyPickerScreenState extends ConsumerState<GiphyPickerScreen> {
                   },
                 );
               },
-              loading: () => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        moodData.secondaryColor,
-                      ),
-                      backgroundColor: moodData.primaryColor.withAlpha(51),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Loading GIFs for "$query"...',
-                      style: TextStyle(
-                        color: moodData.secondaryColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              error: (error, stackTrace) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: moodData.secondaryColor,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Error loading GIFs: ${error.toString()}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: moodData.secondaryColor,
+              loading:
+                  () => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(moodData.secondaryColor),
+                          backgroundColor: moodData.primaryColor.withAlpha(51),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () {
-                          ref.invalidate(giphyResultsProvider(query));
-                        },
-                        child: const Text('Try Again'),
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        Text(
+                          'Loading GIFs for "$query"...',
+                          style: TextStyle(
+                            color: moodData.secondaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ),
+              error:
+                  (error, stackTrace) => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, color: moodData.secondaryColor, size: 48),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error loading GIFs: ${error.toString()}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: moodData.secondaryColor),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              ref.invalidate(giphyResultsProvider(query));
+                            },
+                            child: const Text('Try Again'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
             ),
           ),
         ],
@@ -283,7 +268,7 @@ class GiphyPreviewScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final moodData = ref.watch(currentMoodDataProvider);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(gif.title.isNotEmpty ? gif.title : 'GIF Preview'),
@@ -301,13 +286,12 @@ class GiphyPreviewScreen extends ConsumerWidget {
                   if (loadingProgress == null) return child;
                   return Center(
                     child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              (loadingProgress.expectedTotalBytes ?? 1)
-                          : null,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        moodData.secondaryColor,
-                      ),
+                      value:
+                          loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  (loadingProgress.expectedTotalBytes ?? 1)
+                              : null,
+                      valueColor: AlwaysStoppedAnimation<Color>(moodData.secondaryColor),
                     ),
                   );
                 },
@@ -320,11 +304,11 @@ class GiphyPreviewScreen extends ConsumerWidget {
               onPressed: () {
                 // Save the selected gif to the provider
                 ref.read(selectedGifProvider.notifier).state = gif.originalUrl;
-                
+
                 // Navigate to ContactPickerScreen
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
-                    builder: (context) => const ContactPickerScreen(),
+                    builder: (context) => ContactPickerScreen(gifUrl: gif.originalUrl),
                   ),
                 );
               },
@@ -340,4 +324,4 @@ class GiphyPreviewScreen extends ConsumerWidget {
       ),
     );
   }
-} 
+}

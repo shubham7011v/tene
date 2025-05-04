@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tene/models/tene_model.dart';
+import 'package:tene/services/tene_service.dart' hide allPairTenesProvider;
 import 'package:tene/providers/providers.dart';
-import 'package:tene/screens/receive_tene_screen.dart';
+import 'package:tene/providers/tene_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:tene/models/mood_data.dart';
@@ -13,142 +13,65 @@ class TeneFeedScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final moodData = ref.watch(currentMoodDataProvider);
-    final tenesAsync = ref.watch(unviewedTenesProvider);
-    
+    final tenesAsync = ref.watch(allPairTenesProvider);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Tenes'),
-        backgroundColor: moodData.primaryColor,
-      ),
+      appBar: AppBar(title: const Text('Your Tenes'), backgroundColor: moodData.primaryColor),
       body: AnimatedContainer(
         duration: const Duration(milliseconds: 500),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              moodData.primaryColor.withAlpha(40),
-              moodData.primaryColor.withAlpha(100),
-            ],
+            colors: [moodData.primaryColor.withAlpha(40), moodData.primaryColor.withAlpha(100)],
           ),
         ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final maxWidth = constraints.maxWidth;
-            final maxHeight = constraints.maxHeight;
-            
-            // Calculate responsive dimensions
-            final verticalPadding = maxHeight * 0.02;
-            final horizontalPadding = maxWidth * 0.03;
-            final buttonHeight = maxHeight * 0.06;
-            final fontSize = maxWidth * 0.04;
-            final titleSize = maxWidth * 0.05;
-            final iconSize = maxWidth * 0.12;
-            
-            return tenesAsync.when(
-              data: (tenes) {
-                if (tenes.isEmpty) {
-                  return _buildEmptyState(
-                    context,
-                    moodData,
-                    iconSize: iconSize,
-                    titleSize: titleSize,
-                    fontSize: fontSize,
-                    buttonHeight: buttonHeight,
-                  );
-                }
-                return _buildTeneList(
-                  context,
-                  ref,
-                  tenes,
-                  moodData,
-                  verticalPadding: verticalPadding,
-                  horizontalPadding: horizontalPadding,
-                );
-              },
-              loading: () => Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(moodData.secondaryColor),
-                  backgroundColor: moodData.primaryColor.withAlpha(51),
-                ),
-              ),
-              error: (error, stackTrace) => Center(
+        child: tenesAsync.when(
+          data: (tenes) {
+            if (tenes.isEmpty) {
+              return _buildEmptyState(context, moodData);
+            }
+            return _buildTeneList(context, ref, tenes, moodData);
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error:
+              (error, stackTrace) => Center(
                 child: Padding(
-                  padding: EdgeInsets.all(maxWidth * 0.06),
+                  padding: const EdgeInsets.all(24.0),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: moodData.secondaryColor,
-                        size: iconSize,
-                      ),
-                      SizedBox(height: verticalPadding),
-                      Text(
-                        'Error loading Tenes',
-                        style: TextStyle(
-                          fontSize: titleSize,
-                          fontWeight: FontWeight.bold,
-                          color: moodData.secondaryColor,
-                        ),
-                      ),
-                      SizedBox(height: verticalPadding * 0.5),
-                      Text(
-                        error.toString(),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: moodData.secondaryColor,
-                          fontSize: fontSize,
-                        ),
-                      ),
-                      SizedBox(height: verticalPadding),
+                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text('Error loading Tenes: $error'),
+                      const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () {
-                          ref.invalidate(unviewedTenesProvider);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: moodData.secondaryColor,
-                          foregroundColor: Colors.white,
-                          minimumSize: Size(maxWidth * 0.4, buttonHeight),
-                        ),
+                        onPressed: () => ref.invalidate(allPairTenesProvider),
                         child: const Text('Try Again'),
                       ),
                     ],
                   ),
                 ),
               ),
-            );
-          }
         ),
       ),
     );
   }
 
   // Build empty state when no Tenes are available
-  Widget _buildEmptyState(
-    BuildContext context,
-    MoodData moodData, {
-    required double iconSize,
-    required double titleSize,
-    required double fontSize,
-    required double buttonHeight,
-  }) {
+  Widget _buildEmptyState(BuildContext context, MoodData moodData) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.mood,
-              size: iconSize,
-              color: moodData.secondaryColor.withAlpha(128),
-            ),
+            Icon(Icons.mood, size: 64, color: moodData.secondaryColor.withAlpha(128)),
             const SizedBox(height: 24),
             Text(
               'No vibes right now',
               style: TextStyle(
-                fontSize: titleSize,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
                 color: moodData.secondaryColor,
               ),
@@ -157,24 +80,18 @@ class TeneFeedScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               'When friends send you Tenes, they will appear here',
-              style: TextStyle(
-                fontSize: fontSize,
-                color: moodData.secondaryColor.withAlpha(220),
-              ),
+              style: TextStyle(fontSize: 16, color: moodData.secondaryColor.withAlpha(220)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop(); // Return to home screen
-              },
+              onPressed: () => Navigator.of(context).pop(),
               icon: const Icon(Icons.send),
               label: const Text('Send a Tene'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: moodData.secondaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                minimumSize: Size(200, buttonHeight),
               ),
             ),
           ],
@@ -185,18 +102,13 @@ class TeneFeedScreen extends ConsumerWidget {
 
   // Build list of Tenes
   Widget _buildTeneList(
-    BuildContext context, 
-    WidgetRef ref, 
-    List<TeneModel> tenes, 
-    MoodData moodData, {
-    required double verticalPadding,
-    required double horizontalPadding,
-  }) {
+    BuildContext context,
+    WidgetRef ref,
+    List<TeneData> tenes,
+    MoodData moodData,
+  ) {
     return ListView.builder(
-      padding: EdgeInsets.symmetric(
-        vertical: verticalPadding * 2.5,
-        horizontal: horizontalPadding * 2
-      ),
+      padding: const EdgeInsets.all(16.0),
       itemCount: tenes.length,
       itemBuilder: (context, index) {
         final tene = tenes[index];
@@ -206,28 +118,14 @@ class TeneFeedScreen extends ConsumerWidget {
   }
 
   // Build individual Tene card
-  Widget _buildTeneCard(
-    BuildContext context, 
-    WidgetRef ref, 
-    TeneModel tene, 
-    MoodData moodData
-  ) {
+  Widget _buildTeneCard(BuildContext context, WidgetRef ref, TeneData tene, MoodData moodData) {
     return Card(
       elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.fromLTRB(4, 6, 4, 10),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          ref.read(selectedTeneProvider.notifier).state = tene;
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => ReceiveTeneScreen(tene: tene),
-            ),
-          );
-        },
+        onTap: () => _showTeneDetailsDialog(context, ref, tene, moodData),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
@@ -243,20 +141,20 @@ class TeneFeedScreen extends ConsumerWidget {
                 ),
                 child: Center(
                   child: Text(
-                    tene.moodEmoji,
+                    moodMap[tene.vibeType]?.emoji ?? '😊',
                     style: const TextStyle(fontSize: 32),
                   ),
                 ),
               ),
               const SizedBox(width: 16),
-              
+
               // Tene details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      tene.senderName,
+                      'User ${tene.senderId}',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -265,43 +163,38 @@ class TeneFeedScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Sent ${timeago.format(tene.timestamp)}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      'Sent ${timeago.format(tene.sentAt)}',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
-                    if (tene.gifUrl != null && tene.gifUrl!.isNotEmpty) ...[
+                    if (tene.gifUrl.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Container(
                         height: 80,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: moodData.primaryColor.withAlpha(100),
-                          ),
+                          border: Border.all(color: moodData.primaryColor.withAlpha(100)),
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: CachedNetworkImage(
-                            imageUrl: tene.gifUrl!,
+                            imageUrl: tene.gifUrl,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              color: moodData.primaryColor.withAlpha(30),
-                              child: const Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                            placeholder:
+                                (context, url) => Container(
+                                  color: moodData.primaryColor.withAlpha(30),
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              color: moodData.primaryColor.withAlpha(30),
-                              child: const Icon(Icons.broken_image),
-                            ),
+                            errorWidget:
+                                (context, url, error) => Container(
+                                  color: moodData.primaryColor.withAlpha(30),
+                                  child: const Icon(Icons.broken_image),
+                                ),
                           ),
                         ),
                       ),
@@ -309,7 +202,7 @@ class TeneFeedScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              
+
               // Right arrow
               Icon(
                 Icons.arrow_forward_ios,
@@ -322,4 +215,99 @@ class TeneFeedScreen extends ConsumerWidget {
       ),
     );
   }
-} 
+
+  // Show Tene details in a dialog
+  void _showTeneDetailsDialog(
+    BuildContext context,
+    WidgetRef ref,
+    TeneData tene,
+    MoodData moodData,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            contentPadding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header with mood color
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: moodData.primaryColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Tene from User ${tene.senderId}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // GIF
+                  if (tene.gifUrl.isNotEmpty)
+                    SizedBox(
+                      height: 200,
+                      width: double.infinity,
+                      child: CachedNetworkImage(imageUrl: tene.gifUrl, fit: BoxFit.cover),
+                    ),
+
+                  // Mood info
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Text(
+                          moodMap[tene.vibeType]?.emoji ?? '😊',
+                          style: const TextStyle(fontSize: 48),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Feeling ${moodMap[tene.vibeType]?.name ?? "Happy"}',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: moodData.secondaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Sent ${timeago.format(tene.sentAt)}',
+                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Close button
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: moodData.secondaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      ),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+}

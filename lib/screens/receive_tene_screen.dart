@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/models/mood_data.dart';
 import 'package:tene/models/tene_model.dart';
 import 'package:tene/providers/providers.dart';
+import 'package:tene/providers/tene_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/home_screen.dart';
@@ -23,6 +24,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
   Timer? _countdownTimer;
   int _remainingSeconds = 10; // 10 second countdown
   bool _timerActive = true;
+  bool _isTeneViewed = false;
 
   @override
   void initState() {
@@ -57,10 +59,10 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
         // Update the progress indicator
         _controller.value = 1 - (_remainingSeconds / 10);
       } else {
-        _timerActive = false;
+        setState(() {
+          _timerActive = false;
+        });
         timer.cancel();
-        // Delete Tene when timer expires
-        _markAsViewed(deleteAfterViewing: true);
 
         // Navigate back to home screen
         if (mounted && localContext.mounted) {
@@ -89,15 +91,20 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
   }
 
   // Mark the Tene as viewed in Firestore
-  Future<void> _markAsViewed({bool deleteAfterViewing = false}) async {
-    final firebaseService = ref.read(firebaseServiceProvider);
-    await firebaseService.markTeneAsViewed(widget.tene.id, deleteAfterViewing: deleteAfterViewing);
+  void _markAsViewed() {
+    // Only mark as viewed if it's not already viewed
+    if (!widget.tene.viewed && !_isTeneViewed) {
+      ref.read(viewTeneProvider(widget.tene.id));
+      setState(() {
+        _isTeneViewed = true;
+      });
+    }
   }
 
-  // Send a Tene back with the same mood
+  // Send a Tene back with the same vibe type
   void _sendTeneBack() {
     // Set the current mood to the one from this Tene
-    ref.read(currentMoodProvider.notifier).state = widget.tene.moodId;
+    ref.read(currentMoodProvider.notifier).state = widget.tene.vibeType;
 
     // Navigate to GIF picker screen to start the send flow
     Navigator.of(
@@ -107,7 +114,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
 
   // Get mood data for this Tene
   MoodData get _teneColor {
-    final moodData = moodMap[widget.tene.moodId] ?? moodMap['jhappi']!;
+    final moodData = moodMap[widget.tene.vibeType] ?? moodMap['jhappi']!;
     return moodData;
   }
 
@@ -122,7 +129,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(
+          icon: const Icon(
             Icons.arrow_back_ios,
             color: Colors.white,
             shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
@@ -135,35 +142,9 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
             icon: Icon(
               _timerActive ? Icons.pause : Icons.play_arrow,
               color: Colors.white,
-              shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
+              shadows: const [Shadow(color: Colors.black54, blurRadius: 3)],
             ),
             onPressed: _toggleTimer,
-          ),
-          // Delete button
-          IconButton(
-            icon: Icon(
-              Icons.delete_outline,
-              color: Colors.white,
-              shadows: [Shadow(color: Colors.black54, blurRadius: 3)],
-            ),
-            onPressed: () async {
-              // Store BuildContext in a local variable before any async calls
-              final localContext = context;
-
-              // Cancel the timer
-              _countdownTimer?.cancel();
-
-              // Mark as viewed with delete option
-              await _markAsViewed(deleteAfterViewing: true);
-
-              // Navigate back to home screen
-              if (mounted && localContext.mounted) {
-                Navigator.of(localContext).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => const HomeScreen()),
-                  (route) => false,
-                );
-              }
-            },
           ),
         ],
       ),
@@ -184,13 +165,13 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
             ),
           ),
 
-          // GIF as fullscreen background (if provided)
-          if (widget.tene.gifUrl != null && widget.tene.gifUrl!.isNotEmpty)
+          // GIF as fullscreen background
+          if (widget.tene.gifUrl.isNotEmpty)
             Positioned.fill(
               child: Opacity(
                 opacity: 0.7, // Semi-transparent
                 child: CachedNetworkImage(
-                  imageUrl: widget.tene.gifUrl!,
+                  imageUrl: widget.tene.gifUrl,
                   fit: BoxFit.cover,
                   placeholder:
                       (context, url) => Center(
@@ -213,9 +194,9 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.5),
+                    Colors.black.withOpacity(0.5),
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.5),
+                    Colors.black.withOpacity(0.5),
                   ],
                 ),
               ),
@@ -242,8 +223,8 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
                             return CircularProgressIndicator(
                               value: _controller.value,
                               strokeWidth: 6,
-                              backgroundColor: Colors.white.withValues(alpha: 0.3),
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              backgroundColor: Colors.white.withOpacity(0.3),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                             );
                           },
                         ),
@@ -266,7 +247,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
 
                   // Sender info
                   Text(
-                    'From ${widget.tene.senderName}',
+                    'From ${widget.tene.senderId}',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -283,12 +264,12 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
                     width: 140,
                     height: 140,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
-                        widget.tene.moodEmoji,
+                        moodMap[widget.tene.vibeType]?.emoji ?? '😊',
                         style: const TextStyle(
                           fontSize: 80,
                           shadows: [Shadow(color: Colors.black26, blurRadius: 2)],
@@ -301,7 +282,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
 
                   // Mood name
                   Text(
-                    'Feeling ${moodMap[widget.tene.moodId]?.name ?? "Happy"}',
+                    'Feeling ${moodMap[widget.tene.vibeType]?.name ?? "Happy"}',
                     style: const TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.bold,

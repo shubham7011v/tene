@@ -7,9 +7,12 @@ import 'package:tene/screens/receive_tene_screen.dart';
 import 'package:tene/screens/profile_screen.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:tene/models/mood_data.dart';
+import 'package:tene/models/tene_model.dart';
 import 'package:lottie/lottie.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tene/services/mood_storage_service.dart';
+import 'package:tene/services/tene_service.dart';
+import 'dart:math' as math;
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -105,6 +108,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     });
   }
 
+  // Cycle to the previous mood
+  void _cycleMoodReverse() {
+    if (_isChangingMood) return;
+
+    setState(() {
+      _isChangingMood = true;
+    });
+
+    final currentMood = ref.read(currentMoodProvider);
+    final previousMood = getPreviousMood(currentMood);
+
+    // Change mood with a slight delay for animation
+    Future.delayed(const Duration(milliseconds: 800), () {
+      ref.read(currentMoodProvider.notifier).state = previousMood;
+      // Save the selected mood to SharedPreferences
+      MoodStorageService.saveLastSelectedMood(previousMood);
+      setState(() {
+        _isChangingMood = false;
+      });
+    });
+  }
+
   // Show mood selector directly
   void _showMoodSelector() {
     final currentMood = ref.read(currentMoodProvider);
@@ -134,7 +159,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                         },
                         child: Container(
                           decoration: BoxDecoration(
-                            color: mood.primaryColor.withValues(alpha: 0.2),
+                            color: mood.primaryColor.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
                             border:
                                 currentMood == moodId
@@ -175,10 +200,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   // View a specific Tene
   void _viewTene(tene) {
-    ref.read(selectedTeneProvider.notifier).state = tene;
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: tene)));
+    // Convert TeneData to TeneModel if needed
+    if (tene is! TeneModel) {
+      final teneModel = TeneModel(
+        id: "${tene.senderId}_${DateTime.now().millisecondsSinceEpoch}",
+        senderId: tene.senderId,
+        receiverId: FirebaseAuth.instance.currentUser?.uid ?? '',
+        vibeType: tene.vibeType,
+        gifUrl: tene.gifUrl,
+        sentAt: tene.sentAt,
+        viewed: false,
+      );
+      ref.read(selectedTeneProvider.notifier).state = teneModel;
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: teneModel)));
+    } else {
+      ref.read(selectedTeneProvider.notifier).state = tene;
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: tene)));
+    }
   }
 
   // Show theme mode picker
@@ -347,7 +389,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     // Loading placeholder
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: moodData.primaryColor.withValues(alpha: 0.3),
+        backgroundColor: moodData.primaryColor.withOpacity(0.3),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -388,7 +430,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
+                      color: Colors.black.withOpacity(0.2),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -397,7 +439,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 child: Hero(
                   tag: 'profileAvatar',
                   child: CircleAvatar(
-                    backgroundColor: deepBlue.withValues(alpha: 0.8),
+                    backgroundColor: deepBlue.withOpacity(0.8),
                     radius: 24,
                     child:
                         userProfile['avatarUrl'] != null
@@ -458,9 +500,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            moodData.primaryColor.withValues(alpha: 0.6),
-                            moodData.secondaryColor.withValues(alpha: 0.4),
-                            Colors.white.withValues(alpha: 0.8),
+                            moodData.primaryColor.withOpacity(0.6),
+                            moodData.secondaryColor.withOpacity(0.4),
+                            Colors.white.withOpacity(0.8),
                           ],
                         ),
                       ),
@@ -476,10 +518,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.0),
-                        Colors.black.withValues(alpha: 0.2),
-                      ],
+                      colors: [Colors.black.withOpacity(0.0), Colors.black.withOpacity(0.2)],
                     ),
                   ),
                 ),
@@ -509,12 +548,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                         ),
                       ),
 
-                    // Mood Display Area (Full screen tap target)
+                    // Mood Display Area (Full screen gesture area)
                     Expanded(
                       flex: 1,
                       child: GestureDetector(
                         onTap: _showMoodSelector,
-                        onDoubleTap: _cycleMood,
+                        onVerticalDragEnd: (details) {
+                          // Swipe up cycles to next mood
+                          if (details.velocity.pixelsPerSecond.dy < -300) {
+                            _cycleMood();
+                          }
+                          // Swipe down cycles to previous mood
+                          else if (details.velocity.pixelsPerSecond.dy > 300) {
+                            _cycleMoodReverse();
+                          }
+                        },
+                        onHorizontalDragEnd: (details) {
+                          // Swipe left cycles to next mood
+                          if (details.velocity.pixelsPerSecond.dx < -300) {
+                            _cycleMood();
+                          }
+                          // Swipe right cycles to previous mood
+                          else if (details.velocity.pixelsPerSecond.dx > 300) {
+                            _cycleMoodReverse();
+                          }
+                        },
                         child: Center(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 20.0),
@@ -574,10 +632,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                                           ),
                                           const SizedBox(height: 16),
                                           Text(
-                                            'Tap to choose mood\nDouble tap to cycle',
+                                            'Tap to choose mood\nSwipe to cycle',
                                             style: TextStyle(
                                               fontSize: 16,
-                                              color: moodData.secondaryColor.withValues(alpha: 0.9),
+                                              color: moodData.secondaryColor.withOpacity(0.9),
                                               fontWeight: FontWeight.w500,
                                               shadows: [
                                                 Shadow(
@@ -653,17 +711,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       margin: const EdgeInsets.symmetric(vertical: 16),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.6),
+        color: Colors.white.withOpacity(0.6),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, spreadRadius: 0),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, spreadRadius: 0),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.mail_outline, size: 48, color: moodData.secondaryColor.withValues(alpha: 0.7)),
+          Icon(Icons.mail_outline, size: 48, color: moodData.secondaryColor.withOpacity(0.7)),
           const SizedBox(height: 16),
           const Text(
             'Your vibe inbox is empty',
@@ -739,14 +797,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   // Build individual Tene card
   Widget _buildTeneCard(tene) {
-    final moodColor = moodMap[tene.moodId]?.primaryColor ?? Colors.purple;
+    // Use vibeType instead of moodId
+    final moodColor = moodMap[tene.vibeType]?.primaryColor ?? Colors.purple;
+
+    // Get emoji from the mood map or fallback
+    final emoji = moodMap[tene.vibeType]?.emoji ?? '😊';
+
+    // Format sender display
+    String senderDisplay = 'Someone';
+    if (tene.senderId.isNotEmpty) {
+      // Extract just the first part of the phone number or a shorter ID for display
+      final parts = tene.senderId.split('@');
+      if (parts.isNotEmpty) {
+        senderDisplay = parts[0];
+        // If it's a phone number, format it nicely
+        if (senderDisplay.startsWith('+')) {
+          // Just show last 4 digits with *** prefix
+          senderDisplay = "***" + senderDisplay.substring(math.max(0, senderDisplay.length - 4));
+        }
+      }
+    }
+
+    // Use sentAt for the timestamp
+    final timestamp = tene.sentAt;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.white.withValues(alpha: 0.7),
+      color: Colors.white.withOpacity(0.7),
       elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
+      shadowColor: Colors.black.withOpacity(0.1),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => _viewTene(tene),
@@ -760,9 +840,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 height: 50,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: moodColor.withValues(alpha: 0.2),
+                  color: moodColor.withOpacity(0.2),
                 ),
-                child: Center(child: Text(tene.moodEmoji, style: const TextStyle(fontSize: 24))),
+                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 24))),
               ),
               const SizedBox(width: 16),
 
@@ -772,7 +852,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${tene.senderName} sent you a Tene',
+                      '$senderDisplay sent you a Tene',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -780,7 +860,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                       ),
                     ),
                     Text(
-                      timeago.format(tene.timestamp),
+                      timeago.format(timestamp),
                       style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
                     ),
                   ],

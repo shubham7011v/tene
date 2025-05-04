@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/models/mood_data.dart';
 import 'package:tene/models/tene_model.dart';
-import 'package:tene/services/firebase_service.dart';
+import 'package:tene/services/tene_service.dart';
 import 'package:tene/services/auth_service.dart';
 
 /// Simple weather data model for display
@@ -14,10 +14,7 @@ class WeatherData {
   final String icon;
   final String temperature;
 
-  const WeatherData({
-    required this.icon,
-    required this.temperature,
-  });
+  const WeatherData({required this.icon, required this.temperature});
 }
 
 /// Seasonal theme data
@@ -25,12 +22,8 @@ class SeasonalTheme {
   final String name;
   final String animationPath;
   final String tagline;
-  
-  const SeasonalTheme({
-    required this.name,
-    required this.animationPath,
-    required this.tagline,
-  });
+
+  const SeasonalTheme({required this.name, required this.animationPath, required this.tagline});
 }
 
 /// Theme mode enum with descriptive labels
@@ -38,7 +31,7 @@ enum AppThemeMode {
   system('System'),
   light('Light'),
   dark('Dark');
-  
+
   final String label;
   const AppThemeMode(this.label);
 }
@@ -75,9 +68,18 @@ final cyclableMoods = ['loved', 'cozy', 'jhappi', 'excited', 'relaxed', 'sad', '
 String getNextMood(String currentMood) {
   final currentIndex = cyclableMoods.indexOf(currentMood);
   if (currentIndex == -1) return cyclableMoods.first;
-  
+
   final nextIndex = (currentIndex + 1) % cyclableMoods.length;
   return cyclableMoods[nextIndex];
+}
+
+/// Get the previous mood in the cycle
+String getPreviousMood(String currentMood) {
+  final currentIndex = cyclableMoods.indexOf(currentMood);
+  if (currentIndex == -1) return cyclableMoods.last;
+
+  final previousIndex = (currentIndex - 1 + cyclableMoods.length) % cyclableMoods.length;
+  return cyclableMoods[previousIndex];
 }
 
 /// Available seasonal themes
@@ -119,15 +121,15 @@ final seasonalThemes = [
   ),
 ];
 
-/// Provider for the Firebase service
-final firebaseServiceProvider = Provider<FirebaseService>((ref) {
-  return FirebaseService();
+/// Provider for the TeneService
+final teneServiceProvider = Provider<TeneService>((ref) {
+  return TeneService();
 });
 
-/// StreamProvider for unviewed Tenes
-final unviewedTenesProvider = StreamProvider<List<TeneModel>>((ref) {
-  final firebaseService = ref.watch(firebaseServiceProvider);
-  return firebaseService.getUnviewedTenes();
+/// Update unviewedTenesProvider to use TeneService
+final unviewedTenesProvider = StreamProvider<List<TeneData>>((ref) {
+  final teneService = ref.watch(teneServiceProvider);
+  return teneService.getReceivedTenes();
 });
 
 /// Provider for tracking current Tene selected in the feed
@@ -193,23 +195,21 @@ final selectedContactProvider = StateProvider<String?>((ref) => null);
 /// Mock weather provider (would be replaced with actual API in production)
 final weatherProvider = Provider<WeatherData>((ref) {
   // In a real app, this would fetch actual weather data
-  return const WeatherData(
-    icon: '☀️',
-    temperature: '28°C',
-  );
+  return const WeatherData(icon: '☀️', temperature: '28°C');
 });
 
 /// Provider for a dynamic theme based on current mood
 final moodThemeProvider = Provider<ThemeData>((ref) {
   final moodData = ref.watch(currentMoodDataProvider);
   final appThemeMode = ref.watch(appThemeModeProvider);
-  
+
   final isDarkMode = switch (appThemeMode) {
-    AppThemeMode.system => WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark,
+    AppThemeMode.system =>
+      WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark,
     AppThemeMode.dark => true,
     AppThemeMode.light => false,
   };
-  
+
   return ThemeData(
     colorScheme: ColorScheme.fromSeed(
       seedColor: moodData.primaryColor,
@@ -217,9 +217,8 @@ final moodThemeProvider = Provider<ThemeData>((ref) {
       secondary: moodData.secondaryColor,
       brightness: isDarkMode ? Brightness.dark : Brightness.light,
     ),
-    scaffoldBackgroundColor: isDarkMode 
-      ? Colors.grey.shade900 
-      : moodData.primaryColor.withAlpha(51),
+    scaffoldBackgroundColor:
+        isDarkMode ? Colors.grey.shade900 : moodData.primaryColor.withAlpha(51),
     appBarTheme: AppBarTheme(
       backgroundColor: moodData.primaryColor,
       foregroundColor: isDarkMode ? Colors.white : Colors.black,
@@ -247,14 +246,12 @@ final authStateProvider = StreamProvider<User?>((ref) {
 });
 
 /// StreamProvider for unviewed Tenes by phone number
-final unviewedTenesByPhoneProvider = StreamProvider<List<TeneModel>>((ref) {
-  final firebaseService = ref.watch(firebaseServiceProvider);
-  final phoneNumber = ref.watch(userPhoneNumberProvider);
-  
-  // Return empty list if phone number is not available
+final unviewedTenesByPhoneProvider = StreamProvider.family<TeneData, String>((ref, phoneNumber) {
+  final teneService = ref.watch(teneServiceProvider);
+
   if (phoneNumber.isEmpty) {
-    return Stream.value([]);
+    return Stream.value(TeneData(gifUrl: '', vibeType: '', sentAt: DateTime.now(), senderId: ''));
   }
-  
-  return firebaseService.getUnviewedTenesByPhone(phoneNumber);
-}); 
+
+  return teneService.observeIncomingTenes(otherPhone: phoneNumber);
+});

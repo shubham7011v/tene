@@ -4,11 +4,40 @@ import 'package:tene/providers/providers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tene/screens/phone_link_screen.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    // Schedule this after the frame is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncPhoneNumber();
+    });
+  }
+
+  void _syncPhoneNumber() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser?.phoneNumber != null) {
+      final userProfile = ref.read(userProfileProvider);
+
+      // Check if the phone number in Firebase Auth is different from the one in userProfile
+      if (userProfile['phoneNumber'] != currentUser!.phoneNumber) {
+        final updatedProfile = Map<String, dynamic>.from(userProfile);
+        updatedProfile['phoneNumber'] = currentUser.phoneNumber;
+        ref.read(userProfileProvider.notifier).state = updatedProfile;
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final moodData = ref.watch(currentMoodDataProvider);
     final userProfile = ref.watch(userProfileProvider);
 
@@ -25,7 +54,7 @@ class ProfileScreen extends ConsumerWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [moodData.primaryColor, moodData.secondaryColor.withValues(alpha: 0.7)],
+            colors: [moodData.primaryColor, moodData.secondaryColor.withOpacity(0.7)],
           ),
         ),
         child: SafeArea(
@@ -74,7 +103,7 @@ class ProfileScreen extends ConsumerWidget {
                             color: Colors.white,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
+                                color: Colors.black.withOpacity(0.2),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -93,7 +122,7 @@ class ProfileScreen extends ConsumerWidget {
                                               style: TextStyle(
                                                 fontSize: titleFontSize,
                                                 fontWeight: FontWeight.bold,
-                                                color: moodData.primaryColor,
+                                                color: Colors.white.withOpacity(0.9),
                                               ),
                                             ),
                                           ),
@@ -104,7 +133,7 @@ class ProfileScreen extends ConsumerWidget {
                                         style: TextStyle(
                                           fontSize: titleFontSize,
                                           fontWeight: FontWeight.bold,
-                                          color: moodData.primaryColor,
+                                          color: Colors.white.withOpacity(0.9),
                                         ),
                                       ),
                                     ),
@@ -120,7 +149,7 @@ class ProfileScreen extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: titleFontSize,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Colors.white.withOpacity(0.9),
                         ),
                       ),
 
@@ -131,7 +160,7 @@ class ProfileScreen extends ConsumerWidget {
                         FirebaseAuth.instance.currentUser?.email ?? 'No email',
                         style: TextStyle(
                           fontSize: subtitleFontSize,
-                          color: Colors.white.withValues(alpha: 0.9),
+                          color: Colors.white.withOpacity(0.8),
                         ),
                       ),
 
@@ -139,28 +168,28 @@ class ProfileScreen extends ConsumerWidget {
 
                       // Phone Number Section
                       ListTile(
-                        leading: const Icon(Icons.phone),
-                        title: const Text('Phone Number'),
+                        leading: const Icon(Icons.phone, color: Colors.white),
+                        title: const Text('Phone Number', style: TextStyle(color: Colors.white)),
                         subtitle: Text(
-                          ref.watch(authStateProvider).value?.phoneNumber ?? 'Not linked',
+                          // First check Firebase Auth for phone number, then fall back to userProfile
+                          ref.watch(authStateProvider).value?.phoneNumber ??
+                              userProfile['phoneNumber'] ??
+                              'Not linked',
+                          style: TextStyle(color: Colors.white.withOpacity(0.8)),
                         ),
-                        trailing:
-                            ref.watch(authStateProvider).value?.phoneNumber == null
-                                ? TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (_) => const PhoneLinkScreen()),
-                                    );
-                                  },
-                                  child: const Text('Link'),
-                                )
-                                : null,
+                        trailing: TextButton(
+                          onPressed: () {
+                            Navigator.of(
+                              context,
+                            ).push(MaterialPageRoute(builder: (_) => const PhoneLinkScreen()));
+                          },
+                          child: const Text('Link', style: TextStyle(color: Colors.white)),
+                        ),
                       ),
 
                       // Profile editing section
                       _buildProfileSection(
                         context,
-                        ref,
                         buttonHeight: buttonHeight,
                         fontSize: bodyFontSize,
                         verticalSpacing: verticalSpacing,
@@ -171,7 +200,6 @@ class ProfileScreen extends ConsumerWidget {
                       // Stats section
                       _buildStatsSection(
                         context,
-                        ref,
                         fontSize: bodyFontSize,
                         titleFontSize: subtitleFontSize,
                         rowSpacing: verticalSpacing * 0.4,
@@ -188,8 +216,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildProfileSection(
-    BuildContext context,
-    WidgetRef ref, {
+    BuildContext context, {
     required double buttonHeight,
     required double fontSize,
     required double verticalSpacing,
@@ -201,9 +228,9 @@ class ProfileScreen extends ConsumerWidget {
       width: double.infinity,
       padding: EdgeInsets.all(verticalSpacing),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       child: Column(
         children: [
@@ -244,7 +271,7 @@ class ProfileScreen extends ConsumerWidget {
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
               minimumSize: Size(double.infinity, buttonHeight),
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.5)),
+              side: BorderSide(color: Colors.white.withOpacity(0.5)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(
@@ -258,8 +285,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildStatsSection(
-    BuildContext context,
-    WidgetRef ref, {
+    BuildContext context, {
     required double fontSize,
     required double titleFontSize,
     required double rowSpacing,
@@ -268,9 +294,9 @@ class ProfileScreen extends ConsumerWidget {
       width: double.infinity,
       padding: EdgeInsets.all(fontSize),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,7 +306,7 @@ class ProfileScreen extends ConsumerWidget {
             style: TextStyle(
               fontSize: titleFontSize,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: Colors.white.withOpacity(0.9),
             ),
           ),
 
@@ -302,13 +328,14 @@ class ProfileScreen extends ConsumerWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: fontSize, color: Colors.white.withValues(alpha: 0.9)),
-        ),
+        Text(label, style: TextStyle(fontSize: fontSize, color: Colors.white.withOpacity(0.9))),
         Text(
           value,
-          style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+            color: Colors.white.withOpacity(0.9),
+          ),
         ),
       ],
     );

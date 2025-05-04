@@ -134,15 +134,33 @@ class _PhoneLinkScreenState extends ConsumerState<PhoneLinkScreen> {
       // Link the phone credential with the current user
       await user.linkWithCredential(credential);
 
+      // Get the fresh user data after linking
+      await FirebaseAuth.instance.currentUser?.reload();
+      final refreshedUser = FirebaseAuth.instance.currentUser;
+      final phoneNumber =
+          refreshedUser?.phoneNumber ?? _formatPhoneNumber(_phoneController.text.trim());
+
       // Save the phone linked status
-      final phoneNumber = _formatPhoneNumber(_phoneController.text.trim());
       await ref.read(authServiceProvider).setPhoneLinked(user.uid, phoneNumber);
+
+      // Update the userProfileProvider with the new phone number
+      final currentProfile = ref.read(userProfileProvider);
+      final updatedProfile = Map<String, dynamic>.from(currentProfile);
+      updatedProfile['phoneNumber'] = phoneNumber;
+      ref.read(userProfileProvider.notifier).state = updatedProfile;
+
+      // Verify the phone number was properly linked
+      final isPhoneLinked = refreshedUser?.phoneNumber != null;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Phone number linked successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(
+              isPhoneLinked
+                  ? 'Phone number linked successfully!'
+                  : 'Phone linked in profile but may require Firebase verification',
+            ),
+            backgroundColor: isPhoneLinked ? Colors.green : Colors.orange,
           ),
         );
 

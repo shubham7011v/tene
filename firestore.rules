@@ -10,22 +10,57 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
+    function userHasPhone(phoneNumber) {
+      return request.auth.token.phone_number == phoneNumber;
+    }
+    
     // User profiles
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow create, update, delete: if isSignedIn() && isOwner(userId);
     }
     
-    // Tene messages
-    match /tenes/{teneId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
-      allow update: if isSignedIn() && (
-        resource.data.senderId == request.auth.uid || 
-        resource.data.recipientId == request.auth.uid
+    // PairTenes collection - using deterministic IDs based on phone numbers
+    match /pairTenes/{pairId} {
+      // Allow read if user is signed in AND is either the sender or receiver by phone
+      allow read: if isSignedIn() && (
+        userHasPhone(resource.data.lastSenderPhone) || 
+        userHasPhone(resource.data.lastReceiverPhone)
       );
+      
+      // Allow create/update if:
+      // 1. User is signed in
+      // 2. User is the sender (matches lastSenderPhone field)
+      allow create, update: if isSignedIn() && 
+                     userHasPhone(request.resource.data.lastSenderPhone);
+      
+      // Allow delete if user is signed in and is the sender
+      allow delete: if isSignedIn() && userHasPhone(resource.data.lastSenderPhone);
+    }
+    
+    // Legacy Tene messages - using predefined document IDs: senderId_receiverId
+    match /tenes/{teneId} {
+      // Allow read if user is signed in AND is either the sender or receiver
+      allow read: if isSignedIn() && (
+        resource.data.senderId == request.auth.uid || 
+        resource.data.receiverId == request.auth.uid
+      );
+      
+      // Allow create if:
+      // 1. User is signed in
+      // 2. User is the sender (matches senderId field)
+      // 3. Document ID follows the pattern senderId_receiverId
+      allow create: if isSignedIn() && 
+                     request.resource.data.senderId == request.auth.uid &&
+                     teneId == request.resource.data.senderId + "_" + request.resource.data.receiverId;
+      
+      // Allow update if user is signed in and is either sender or receiver
+      allow update: if isSignedIn() && (
+        resource.data.senderId == request.auth.uid ||
+        resource.data.receiverId == request.auth.uid
+      );
+      
+      // Allow delete if user is signed in and is the sender
       allow delete: if isSignedIn() && resource.data.senderId == request.auth.uid;
     }
     

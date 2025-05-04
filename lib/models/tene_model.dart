@@ -1,112 +1,92 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Model class representing a Tene message sent between users
+/// Model class for a Tene message with Firestore integration
 class TeneModel {
   final String id;
   final String senderId;
-  final String senderName;
-  final String phoneNumber;  // Recipient phone number
-  final String fromPhone;    // Sender phone number
-  final String toPhone;      // Recipient phone number (new field)
-  final String moodId;
-  final String moodEmoji;
-  final String? gifUrl;
-  final DateTime timestamp;
+  final String receiverId;
+  final String vibeType;
+  final String gifUrl;
+  final DateTime sentAt;
   final bool viewed;
+  final DateTime? viewedAt;
 
   TeneModel({
     required this.id,
     required this.senderId,
-    required this.senderName,
-    required this.phoneNumber,
-    this.fromPhone = '',
-    this.toPhone = '',
-    required this.moodId,
-    required this.moodEmoji,
-    this.gifUrl,
-    required this.timestamp,
-    this.viewed = false,
+    required this.receiverId,
+    required this.vibeType,
+    required this.gifUrl,
+    required this.sentAt,
+    required this.viewed,
+    this.viewedAt,
   });
 
-  /// Create a TeneModel from Firestore document
+  /// Create a TeneModel from a Firestore DocumentSnapshot
   factory TeneModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
-    // Handle both old and new field structures
-    String? extractedGifUrl;
-    
-    // Check if we have the new 'media' field structure
-    if (data['media'] != null && data['media'] is Map) {
-      final media = data['media'] as Map<String, dynamic>;
-      extractedGifUrl = media['url'] as String?;
-    } else {
-      // Use legacy 'gifUrl' field if available
-      extractedGifUrl = data['gifUrl'] as String?;
-    }
-    
+
     return TeneModel(
       id: doc.id,
       senderId: data['senderId'] ?? '',
-      senderName: data['senderName'] ?? 'Unknown',
-      phoneNumber: data['phoneNumber'] ?? data['to'] ?? '', // Backward compatibility
-      fromPhone: data['from'] ?? '',                        // New field
-      toPhone: data['to'] ?? data['phoneNumber'] ?? '',     // New field with fallback
-      moodId: data['moodId'] ?? data['mood'] ?? 'jhappi',   // Handle both field names
-      moodEmoji: data['moodEmoji'] ?? '😊',
-      gifUrl: extractedGifUrl,
-      timestamp: (data['timestamp'] is Timestamp) 
-          ? (data['timestamp'] as Timestamp).toDate()
-          : DateTime.now(),
+      receiverId: data['receiverId'] ?? '',
+      vibeType: data['vibeType'] ?? '',
+      gifUrl: data['gifUrl'] ?? '',
+      sentAt: (data['sentAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       viewed: data['viewed'] ?? false,
+      viewedAt: (data['viewedAt'] as Timestamp?)?.toDate(),
     );
   }
 
-  /// Convert model to map for Firestore
-  Map<String, dynamic> toMap() {
+  /// Convert TeneModel to a Map for Firestore
+  Map<String, dynamic> toFirestore() {
     return {
       'senderId': senderId,
-      'senderName': senderName,
-      'phoneNumber': phoneNumber,
-      'from': fromPhone,
-      'to': toPhone,
-      'moodId': moodId,
-      'mood': moodId, // Add the new field name too
-      'moodEmoji': moodEmoji,
-      'media': {
-        'type': 'gif',
-        'url': gifUrl,
-      },
-      'timestamp': Timestamp.fromDate(timestamp),
+      'receiverId': receiverId,
+      'vibeType': vibeType,
+      'gifUrl': gifUrl,
+      'sentAt': FieldValue.serverTimestamp(),
       'viewed': viewed,
+      'viewedAt': viewedAt != null ? Timestamp.fromDate(viewedAt!) : null,
     };
   }
 
-  /// Create a copy with updated fields
+  /// Create a copy of this TeneModel with some fields changed
   TeneModel copyWith({
     String? id,
     String? senderId,
-    String? senderName,
-    String? phoneNumber,
-    String? fromPhone,
-    String? toPhone,
-    String? moodId,
-    String? moodEmoji,
+    String? receiverId,
+    String? vibeType,
     String? gifUrl,
-    DateTime? timestamp,
+    DateTime? sentAt,
     bool? viewed,
+    DateTime? viewedAt,
   }) {
     return TeneModel(
       id: id ?? this.id,
       senderId: senderId ?? this.senderId,
-      senderName: senderName ?? this.senderName,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
-      fromPhone: fromPhone ?? this.fromPhone,
-      toPhone: toPhone ?? this.toPhone,
-      moodId: moodId ?? this.moodId,
-      moodEmoji: moodEmoji ?? this.moodEmoji,
+      receiverId: receiverId ?? this.receiverId,
+      vibeType: vibeType ?? this.vibeType,
       gifUrl: gifUrl ?? this.gifUrl,
-      timestamp: timestamp ?? this.timestamp,
+      sentAt: sentAt ?? this.sentAt,
       viewed: viewed ?? this.viewed,
+      viewedAt: viewedAt ?? this.viewedAt,
     );
   }
-} 
+
+  /// Mark this Tene as viewed with current timestamp
+  TeneModel markAsViewed() {
+    return copyWith(viewed: true, viewedAt: DateTime.now());
+  }
+
+  /// Generate a unique document ID for a Tene between two users
+  static String generateId(String senderUid, String receiverUid) {
+    return '${senderUid}_$receiverUid';
+  }
+
+  @override
+  String toString() {
+    return 'TeneModel(id: $id, senderId: $senderId, receiverId: $receiverId, '
+        'vibeType: $vibeType, viewed: $viewed)';
+  }
+}
