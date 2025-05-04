@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:tene/firebase_options_dev.dart';
 import 'package:tene/firebase_options_prod.dart';
 import 'package:tene/providers/providers.dart';

@@ -2,83 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:tene/screens/home_screen.dart';
-import 'package:tene/screens/phone_link_screen.dart';
 import 'package:tene/utils/sign_in_config.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class GoogleLinkScreen extends ConsumerStatefulWidget {
+  const GoogleLinkScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<GoogleLinkScreen> createState() => _GoogleLinkScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _GoogleLinkScreenState extends ConsumerState<GoogleLinkScreen> {
   bool _isLoading = false;
-  bool _checkingAuth = true;
   String _errorMessage = '';
 
-  @override
-  void initState() {
-    super.initState();
-    // Check for linked account
-    _checkForLinkedAccount();
-    // Check if Google Play Services are available
-    _checkPlayServices();
-  }
-
-  Future<void> _checkForLinkedAccount() async {
-    if (!mounted) return;
-
-    setState(() {
-      _checkingAuth = true;
-    });
-
-    try {
-      // Check if Google account is linked
-      final isLinked = await ref.read(authServiceProvider).isGoogleLinked();
-
-      if (isLinked && mounted) {
-        // If linked, try to sign in with Google directly
-        await _signInWithGoogle();
-      }
-    } catch (e) {
-      debugPrint('Error checking linked account: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _checkingAuth = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _checkPlayServices() async {
-    final hasGooglePlay = await SignInConfig.checkGooglePlayServices();
-    if (!hasGooglePlay && mounted) {
-      setState(() {
-        _errorMessage = 'Google Play Services are required but not available';
-      });
-    }
-  }
-
-  Future<void> _signInWithGoogle() async {
-    // Store BuildContext in a local variable before any async calls
-    final localContext = context;
-
-    if (!mounted) return;
-
+  Future<void> _linkWithGoogle() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
 
     try {
-      final userCredential = await ref.read(authServiceProvider).signInWithGoogle();
+      final userCredential = await ref.read(authServiceProvider).linkWithGoogle();
 
       // If null, the sign-in was cancelled by the user
       if (userCredential == null) {
-        if (!mounted) return;
-
         setState(() {
           _isLoading = false;
           // Don't show error for user cancellation
@@ -86,27 +33,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         return;
       }
 
-      // Check if phone number is linked
-      final isPhoneLinked = await ref.read(authServiceProvider).isPhoneLinked();
-
-      if (mounted && localContext.mounted) {
-        if (isPhoneLinked) {
-          // If phone is linked, go to home screen
-          Navigator.of(
-            localContext,
-          ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
-        } else {
-          // If phone is not linked, go to phone link screen
-          Navigator.of(
-            localContext,
-          ).pushReplacement(MaterialPageRoute(builder: (_) => const PhoneLinkScreen()));
-        }
+      if (mounted) {
+        // Navigate to home screen after successful linking
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
       }
     } catch (e) {
       // Use the error formatter
       final errorMessage = SignInConfig.formatSignInError(e);
-
-      if (!mounted) return;
 
       setState(() {
         _isLoading = false;
@@ -114,10 +49,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       });
 
       // Show a snackbar with error details
-      if (mounted && localContext.mounted) {
-        ScaffoldMessenger.of(localContext).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Google Sign-In failed: $errorMessage'),
+            content: Text('Account linking failed: $errorMessage'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -130,24 +65,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Show loading screen while checking for linked account
-    if (_checkingAuth) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text('Checking account status...', style: theme.textTheme.bodyLarge),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Tene Login'), elevation: 0),
+      appBar: AppBar(
+        title: const Text('Link Google Account'),
+        automaticallyImplyLeading: false, // Disable back button
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -156,27 +78,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Logo
+                // Icon
+                Icon(Icons.link, size: 80, color: theme.colorScheme.primary),
+                const SizedBox(height: 24),
+
+                // Title
                 Text(
-                  'Tene',
-                  style: theme.textTheme.headlineLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  ),
+                  'Link Your Google Account',
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 8),
-                // Subtitle
+                const SizedBox(height: 16),
+
+                // Explanation
                 Text(
-                  'Share your mood with friends',
+                  'Your phone number has been verified! Now link your Google account for faster sign-in next time.',
                   style: theme.textTheme.bodyLarge,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 32),
 
-                // Google Sign In Button
+                // Google Link Button
                 ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _signInWithGoogle,
+                  onPressed: _isLoading ? null : _linkWithGoogle,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black87,
@@ -224,11 +148,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                   label:
                       _isLoading
-                          ? const Text('Signing in...')
+                          ? const Text('Linking...')
                           : const Text(
-                            'Sign in with Google',
+                            'Link Google Account',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Skip option
+                TextButton(
+                  onPressed:
+                      _isLoading
+                          ? null
+                          : () {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(builder: (_) => const HomeScreen()),
+                            );
+                          },
+                  child: const Text('Skip for now'),
                 ),
 
                 // Error message
@@ -247,14 +186,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ],
-
-                const SizedBox(height: 24),
-                // Help text
-                Text(
-                  'Having trouble signing in? Make sure you have Google Play Services installed and up to date.',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
               ],
             ),
           ),

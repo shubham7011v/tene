@@ -20,7 +20,7 @@ void main() async {
     debugPrint('RUNNING IN DEVELOPMENT MODE');
 
     // Launch the app with environment configuration
-    runApp(const ProviderScope(child: MyApp(debugBanner: true, environmentBadge: true)));
+    runApp(const ProviderScope(child: MyApp(debugBanner: false, environmentBadge: false)));
   } catch (e) {
     debugPrint('Error during development environment initialization: $e');
     // Fallback to basic configuration even if environment setup fails

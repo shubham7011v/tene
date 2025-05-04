@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:tene/screens/phone_link_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -135,6 +136,26 @@ class ProfileScreen extends ConsumerWidget {
                       ),
 
                       SizedBox(height: sectionSpacing),
+
+                      // Phone Number Section
+                      ListTile(
+                        leading: const Icon(Icons.phone),
+                        title: const Text('Phone Number'),
+                        subtitle: Text(
+                          ref.watch(authStateProvider).value?.phoneNumber ?? 'Not linked',
+                        ),
+                        trailing:
+                            ref.watch(authStateProvider).value?.phoneNumber == null
+                                ? TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(builder: (_) => const PhoneLinkScreen()),
+                                    );
+                                  },
+                                  child: const Text('Link'),
+                                )
+                                : null,
+                      ),
 
                       // Profile editing section
                       _buildProfileSection(

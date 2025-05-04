@@ -28,7 +28,7 @@ class EnvironmentConfig {
       'FIREBASE_PROJECT_ID': dotenv.get('FIREBASE_PROJECT_ID', fallback: 'tene-emotions'),
     };
 
-    debugPrint('Environment config loaded for: ${environmentName}');
+    debugPrint('Environment config loaded for: $environmentName');
   }
 
   /// Load the appropriate .env file based on the environment
@@ -51,7 +51,7 @@ class EnvironmentConfig {
 
   /// Create default configuration if env file loading fails
   static Map<String, String> _createDefaultConfig() {
-    debugPrint('Using default configuration for ${environmentName}');
+    debugPrint('Using default configuration for $environmentName');
     return {
       'API_URL': _getDefaultApiUrl(),
       'GIPHY_API_KEY': 'YOUR_GIPHY_API_KEY',
