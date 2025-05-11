@@ -86,7 +86,6 @@ flutter:
     - .env.dev
     - .env.prod
     - assets/animations/
-    - assets/animations/mood_backdrops/
     - assets/images/
 
   # To add assets to your application, add an assets section, like this:
