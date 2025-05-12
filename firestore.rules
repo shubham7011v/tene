@@ -54,6 +54,12 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.senderId == request.auth.uid;
     }
     
+    // User document references collection - stores persistent references for sent Tenes
+    match /userDocRefs/{userId} {
+      // Allow read/write only if the user is accessing their own document
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+    
     // Default deny
     match /{document=**} {
       allow read, write: if false;

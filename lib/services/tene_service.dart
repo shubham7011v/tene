@@ -81,6 +81,13 @@ class TeneService {
   // Reference to the collection of tenes
   late final CollectionReference _tenesCollection;
 
+  // Reference to the collection of user document references
+  late final CollectionReference _userDocRefsCollection;
+
+  // In-memory cache of the user's Firestore document to minimize reads
+  Map<String, dynamic>? _cachedUserDoc;
+  bool _hasLoadedFromFirestore = false;
+
   /// Constructor with dependency injection for testability
   TeneService({
     FirebaseFirestore? firestore,
@@ -95,6 +102,7 @@ class TeneService {
              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
            ) {
     _tenesCollection = _firestore.collection('tenes');
+    _userDocRefsCollection = _firestore.collection('userDocRefs');
   }
 
   /// Get current user ID
@@ -106,40 +114,125 @@ class TeneService {
   /// Normalize a phone number by removing all spaces and non-digit characters except the + sign
   String normalizePhoneNumber(String phone) {
     if (phone.isEmpty) return '';
-    return phone.replaceAll(RegExp(r'\s+'), ''); // Remove spaces
+    // Remove all non-digit characters except the + sign
+    return phone.replaceAll(RegExp(r'[^\d+]'), '');
+  }
+
+  /// Store document reference in Firestore for persistence
+  /// This ensures we can recover document references even if local storage is cleared
+  Future<void> storeDocRefInFirestore(String contactPhone, String docRef) async {
+    final userUid = currentUserId;
+    if (userUid.isEmpty) return;
+
+    final normalizedPhone = normalizePhoneNumber(contactPhone);
+
+    try {
+      // Store all contacts in a single document under the user's ID
+      await _userDocRefsCollection.doc(userUid).set({
+        'contactRefs': {normalizedPhone: docRef},
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error storing doc ref in Firestore: $e');
+    }
+  }
+
+  /// Retrieve document reference from Firestore
+  /// Used when local storage is cleared but we need to recover references
+  Future<String?> getDocRefFromFirestore(String contactPhone) async {
+    final userUid = currentUserId;
+    if (userUid.isEmpty) return null;
+
+    final normalizedPhone = normalizePhoneNumber(contactPhone);
+
+    try {
+      // Check if we've already loaded the user doc into memory
+      if (_cachedUserDoc != null && _cachedUserDoc!.containsKey('contactRefs')) {
+        final contactRefs = _cachedUserDoc!['contactRefs'] as Map<String, dynamic>;
+        if (contactRefs.containsKey(normalizedPhone)) {
+          return contactRefs[normalizedPhone] as String;
+        }
+        return null;
+      }
+
+      // If not in memory, fetch from Firestore
+      final doc = await _userDocRefsCollection.doc(userUid).get();
+      if (doc.exists) {
+        _cachedUserDoc = doc.data() as Map<String, dynamic>;
+        final contactRefs = _cachedUserDoc!['contactRefs'] as Map<String, dynamic>?;
+        if (contactRefs != null && contactRefs.containsKey(normalizedPhone)) {
+          return contactRefs[normalizedPhone] as String;
+        }
+      }
+    } catch (e) {
+      print('Error retrieving doc ref from Firestore: $e');
+    }
+    return null;
   }
 
   /// Cache a document reference for a contact
+  /// Now stores in both secure storage (for quick access) and Firestore (for persistence)
   Future<void> cacheDocRefForContact(String contactPhone, String docRef) async {
     final normalizedPhone = normalizePhoneNumber(contactPhone);
+
+    // Store in secure storage for fast access
     await _secureStorage.write(key: 'tene_docref_${normalizedPhone.trim()}', value: docRef);
+
+    // Also store in Firestore for persistence across installs/storage clears
+    await storeDocRefInFirestore(normalizedPhone, docRef);
   }
 
   /// Get cached document reference for a contact
+  /// Only checks secure storage, never loads Firestore for individual contacts
   Future<String?> getCachedDocRefForContact(String contactPhone) async {
     final normalizedPhone = normalizePhoneNumber(contactPhone);
+
+    // Only check secure storage, never load from Firestore for individual contacts
     return await _secureStorage.read(key: 'tene_docref_${normalizedPhone.trim()}');
+  }
+
+  /// Load the user document from Firestore and cache it in memory
+  Future<void> _loadUserDocumentFromFirestore() async {
+    final userUid = currentUserId;
+    if (userUid.isEmpty) return;
+
+    try {
+      final doc = await _userDocRefsCollection.doc(userUid).get();
+      if (doc.exists) {
+        _cachedUserDoc = doc.data() as Map<String, dynamic>;
+      } else {
+        _cachedUserDoc = {};
+      }
+      _hasLoadedFromFirestore = true;
+    } catch (e) {
+      print('Error loading user document from Firestore: $e');
+    }
   }
 
   /// Delete cached document reference for a contact
   Future<void> deleteDocRefForContact(String contactPhone) async {
     final normalizedPhone = normalizePhoneNumber(contactPhone);
     await _secureStorage.delete(key: 'tene_docref_${normalizedPhone.trim()}');
+
+    // Note: We don't delete from Firestore as it serves as a backup
   }
 
   /// Check if a tene has been seen locally
-  bool hasSeen(String teneId) {
-    return _seenTeneIds.contains(teneId);
+  Future<bool> hasSeen(String teneId) async {
+    return await _secureStorage.read(key: 'viewed_tene_$teneId') == 'true';
   }
 
   /// Mark a tene as seen locally
-  void markSeen(String teneId) {
-    _seenTeneIds.add(teneId);
+  Future<void> markSeen(String teneId) async {
+    await _secureStorage.write(key: 'viewed_tene_$teneId', value: 'true');
   }
 
   /// Check if we've already sent a Tene to this contact
+  /// Only checks secure storage, never loads Firestore for individual contacts
   Future<bool> hasSentTeneToContact(String contactPhone) async {
     final normalizedPhone = normalizePhoneNumber(contactPhone);
+
+    // Only check secure storage, never load from Firestore for individual contacts
     return await _secureStorage.read(key: 'sent_tene_to_${normalizedPhone}') == 'true';
   }
 
@@ -147,15 +240,34 @@ class TeneService {
   Future<void> markTeneSentToContact(String contactPhone) async {
     final normalizedPhone = normalizePhoneNumber(contactPhone);
     await _secureStorage.write(key: 'sent_tene_to_${normalizedPhone}', value: 'true');
+
+    // Also store sent status in Firestore for persistence
+    final userUid = currentUserId;
+    if (userUid.isNotEmpty) {
+      await _userDocRefsCollection.doc(userUid).set({
+        'sentStatus': {normalizedPhone: true},
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
   }
 
   /// Reset the sent status for a contact (after they've sent a Tene back)
   Future<void> resetSentStatusForContact(String contactPhone) async {
     final normalizedPhone = normalizePhoneNumber(contactPhone);
     await _secureStorage.delete(key: 'sent_tene_to_$normalizedPhone');
+
+    // Also update in Firestore
+    final userUid = currentUserId;
+    if (userUid.isNotEmpty) {
+      await _userDocRefsCollection.doc(userUid).set({
+        'sentStatus': {normalizedPhone: false},
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
   }
 
   /// Send a Tene with optimized document reference approach
+  /// Never loads from Firestore for individual missing contacts
   Future<SendTeneResult> sendTene({
     required String toPhone,
     required String vibeType,
@@ -170,6 +282,7 @@ class TeneService {
     }
 
     // Check if we've already sent a Tene to this contact
+    // Only checks secure storage, never Firestore
     final alreadySent = await hasSentTeneToContact(normalizedToPhone);
     if (alreadySent) {
       return SendTeneResult.alreadySent();
@@ -177,6 +290,7 @@ class TeneService {
 
     try {
       // Try to get cached document reference for this recipient
+      // Only checks secure storage, never Firestore
       final cachedDocRef = await getCachedDocRefForContact(normalizedToPhone);
 
       // Data to set
@@ -231,50 +345,41 @@ class TeneService {
   /// Get a stream of received Tenes for the current user
   Stream<List<TeneData>> getReceivedTenes() {
     final myPhone = normalizePhoneNumber(currentUserPhone);
+    final myUid = currentUserId;
 
-    if (myPhone.isEmpty) {
+    if (myPhone.isEmpty || myUid.isEmpty) {
       return Stream.value([]);
     }
 
-    // Query Firestore for documents where this user is the receiver
-    return _tenesCollection
-        .where('receiverPhone', isEqualTo: myPhone)
-        .orderBy('sentAt', descending: true)
-        .snapshots()
-        .asyncMap((snapshot) async {
-          final List<TeneData> result = [];
+    // Query the tenes collection for received Tenes
+    return _tenesCollection.where('receiverPhone', isEqualTo: myPhone).snapshots().asyncMap((
+      snapshot,
+    ) async {
+      final List<TeneData> result = [];
 
-          for (var doc in snapshot.docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            final senderPhone = normalizePhoneNumber(data['senderPhone'] as String? ?? '');
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final senderPhone = normalizePhoneNumber(data['senderPhone'] as String? ?? '');
 
-            // Cache the document reference for this sender
-            if (senderPhone.isNotEmpty) {
-              cacheDocRefForContact(senderPhone, doc.reference.path);
+        // Cache the document reference for this sender
+        if (senderPhone.isNotEmpty) {
+          cacheDocRefForContact(senderPhone, doc.reference.path);
+          await resetSentStatusForContact(senderPhone);
+        }
 
-              // When we receive a Tene, reset the sent status for this contact
-              // This allows the user to send a new Tene to this contact
-              await resetSentStatusForContact(senderPhone);
-            }
+        // Create TeneData and check if it's been viewed
+        final tene = TeneData.fromMap(data, docId: doc.id);
+        tene.viewed = await hasSeen(doc.id);
+        result.add(tene);
+      }
 
-            // Create TeneData and check if it's been viewed
-            final tene = TeneData.fromMap(data, docId: doc.id);
-
-            // Check if we've seen this tene before
-            tene.viewed = hasSeen(doc.id);
-
-            // Add to results - we show all tenes, but mark which are viewed
-            result.add(tene);
-          }
-
-          return result;
-        });
+      return result;
+    });
   }
 
   /// Mark a Tene as viewed locally
-  void markTeneViewed(String teneId) {
-    // Just mark it as seen in our local cache
-    markSeen(teneId);
+  Future<void> markTeneViewed(String teneId) async {
+    await markSeen(teneId);
   }
 
   /// Get a stream of all sent Tenes by the current user
@@ -303,36 +408,132 @@ class TeneService {
     return getReceivedTenes().map((tenes) => tenes.where((tene) => !tene.viewed).toList());
   }
 
-  /// Initialize sent status tracking on app start
-  Future<void> initializeSentStatusTracking() async {
-    // Check for any sent Tenes and mark contacts accordingly
-    final myPhone = normalizePhoneNumber(currentUserPhone);
-
-    if (myPhone.isEmpty) return;
+  /// Batch update multiple document references in Firestore
+  /// More efficient when initializing or restoring multiple references
+  Future<void> batchUpdateDocRefs(
+    Map<String, String> contactRefs,
+    Map<String, bool> sentStatus,
+  ) async {
+    final userUid = currentUserId;
+    if (userUid.isEmpty || (contactRefs.isEmpty && sentStatus.isEmpty)) return;
 
     try {
+      final data = <String, dynamic>{'lastUpdated': FieldValue.serverTimestamp()};
+
+      if (contactRefs.isNotEmpty) {
+        data['contactRefs'] = contactRefs;
+      }
+
+      if (sentStatus.isNotEmpty) {
+        data['sentStatus'] = sentStatus;
+      }
+
+      // Update everything in a single write
+      await _userDocRefsCollection.doc(userUid).set(data, SetOptions(merge: true));
+    } catch (e) {
+      print('Error batch updating Firestore: $e');
+    }
+  }
+
+  /// Initialize sent status tracking on app start
+  /// Only loads from Firestore if the entire cache is empty
+  Future<void> initializeSentStatusTracking() async {
+    final myPhone = normalizePhoneNumber(currentUserPhone);
+    final userUid = currentUserId;
+
+    if (myPhone.isEmpty || userUid.isEmpty) return;
+
+    try {
+      // First check if secure storage is completely empty
+      final allLocalValues = await _secureStorage.readAll();
+
+      // Only use Firestore if secure storage is completely empty
+      if (allLocalValues.isEmpty) {
+        print('Cache is completely empty, loading from Firestore...');
+        await _loadUserDocumentFromFirestore();
+
+        // If we have data in Firestore, restore it to secure storage
+        if (_cachedUserDoc != null && _cachedUserDoc!.isNotEmpty) {
+          // Restore contact refs
+          if (_cachedUserDoc!.containsKey('contactRefs')) {
+            final contactRefs = _cachedUserDoc!['contactRefs'] as Map<String, dynamic>;
+            for (final entry in contactRefs.entries) {
+              final contactPhone = entry.key;
+              final docRef = entry.value as String;
+              await _secureStorage.write(key: 'tene_docref_${contactPhone.trim()}', value: docRef);
+            }
+          }
+
+          // Restore sent status
+          if (_cachedUserDoc!.containsKey('sentStatus')) {
+            final sentStatus = _cachedUserDoc!['sentStatus'] as Map<String, dynamic>;
+            for (final entry in sentStatus.entries) {
+              final contactPhone = entry.key;
+              final isSent = entry.value as bool;
+
+              if (isSent) {
+                await _secureStorage.write(key: 'sent_tene_to_$contactPhone', value: 'true');
+              }
+            }
+          }
+
+          // No need to query Firestore for tenes since we already have the data
+          _hasLoadedFromFirestore = true;
+          return;
+        }
+      } else {
+        // We have some data in secure storage, don't load from Firestore
+        _hasLoadedFromFirestore = true;
+        return;
+      }
+
+      // If we get here, cache was empty and Firestore had no data
+      // We'll need to rebuild from tenes collection
       final snapshot =
           await _tenesCollection
               .where('senderPhone', isEqualTo: myPhone)
               .orderBy('sentAt', descending: true)
               .get();
 
+      // Prepare batch updates
+      final contactRefsToUpdate = <String, String>{};
+      final sentStatusToUpdate = <String, bool>{};
+
+      // Process all documents and collect data for batch update
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final receiverPhone = normalizePhoneNumber(data['receiverPhone'] as String? ?? '');
 
         if (receiverPhone.isNotEmpty) {
+          // Store locally
+          await _secureStorage.write(
+            key: 'tene_docref_${receiverPhone.trim()}',
+            value: doc.reference.path,
+          );
+
+          // Add to batch update
+          contactRefsToUpdate[receiverPhone] = doc.reference.path;
+
           // Check if this contact has sent us a Tene in response
           final hasResponse = await hasResponseFromContact(receiverPhone);
 
-          // If no response, mark as sent
+          // Update sent status locally
           if (!hasResponse) {
-            await markTeneSentToContact(receiverPhone);
+            await _secureStorage.write(key: 'sent_tene_to_$receiverPhone', value: 'true');
+            sentStatusToUpdate[receiverPhone] = true;
+          } else {
+            sentStatusToUpdate[receiverPhone] = false;
           }
         }
       }
+
+      // Perform a single Firestore update for all contacts
+      if (contactRefsToUpdate.isNotEmpty || sentStatusToUpdate.isNotEmpty) {
+        await batchUpdateDocRefs(contactRefsToUpdate, sentStatusToUpdate);
+      }
+
+      _hasLoadedFromFirestore = true;
     } catch (e) {
-      // Silently handle errors during initialization
       print('Error initializing sent status: $e');
     }
   }

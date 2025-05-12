@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/models/mood_data.dart';
 import 'package:tene/models/tene_model.dart';
-import 'package:tene/providers/providers.dart';
+import 'package:tene/providers/providers.dart' as main_providers;
 import 'package:tene/providers/tene_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
@@ -91,10 +91,13 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
   }
 
   // Mark the Tene as viewed in Firestore
-  void _markAsViewed() {
+  void _markAsViewed() async {
     // Only mark as viewed if it's not already viewed
     if (!widget.tene.viewed && !_isTeneViewed) {
-      ref.read(viewTeneProvider(widget.tene.id));
+      // Mark as viewed in secure storage
+      await ref.read(main_providers.teneServiceProvider).markTeneViewed(widget.tene.id);
+
+      // Update local state
       setState(() {
         _isTeneViewed = true;
       });
@@ -104,7 +107,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
   // Send a Tene back with the same vibe type
   void _sendTeneBack() {
     // Set the current mood to the one from this Tene
-    ref.read(currentMoodProvider.notifier).state = widget.tene.vibeType;
+    ref.read(main_providers.currentMoodProvider.notifier).state = widget.tene.vibeType;
 
     // Navigate to GIF picker screen to start the send flow
     Navigator.of(
