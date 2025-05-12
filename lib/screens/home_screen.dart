@@ -573,16 +573,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 8.0, bottom: 12.0),
-          child: Text(
-            'Recent Vibes',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D4A6D),
-              shadows: [Shadow(color: Colors.white, offset: Offset(1, 1), blurRadius: 2)],
-            ),
+        Padding(
+          padding: const EdgeInsets.only(left: 8.0, bottom: 12.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Recent Vibes',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D4A6D),
+                  shadows: [Shadow(color: Colors.white, offset: Offset(1, 1), blurRadius: 2)],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Color(0xFF2D4A6D)),
+                onPressed: () {
+                  // Force refresh the unviewedTenesProvider
+                  ref.invalidate(unviewedTenesProvider);
+                },
+                tooltip: 'Refresh Recent Vibes',
+              ),
+            ],
           ),
         ),
         Expanded(
