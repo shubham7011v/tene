@@ -10,7 +10,10 @@ class TeneData {
   final DateTime sentAt;
   final String senderId;
   final String receiverId;
-  final bool viewed;
+  final String senderPhone;
+  final String receiverPhone;
+  final String docId;
+  bool viewed; // No longer final, can be modified locally
 
   TeneData({
     required this.gifUrl,
@@ -18,18 +21,51 @@ class TeneData {
     required this.sentAt,
     required this.senderId,
     this.receiverId = '',
+    this.senderPhone = '',
+    this.receiverPhone = '',
     this.viewed = false,
+    this.docId = '',
   });
 
-  factory TeneData.fromMap(Map<String, dynamic> data) {
+  factory TeneData.fromMap(Map<String, dynamic> data, {String docId = ''}) {
     return TeneData(
-      gifUrl: data['lastGifUrl'] ?? '',
-      vibeType: data['lastVibeType'] ?? '',
-      sentAt: (data['lastSentAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      senderId: data['lastSenderId'] ?? '',
+      gifUrl: data['gifUrl'] ?? '',
+      vibeType: data['vibeType'] ?? '',
+      sentAt: (data['sentAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      senderId: data['senderId'] ?? '',
       receiverId: data['receiverId'] ?? '',
-      viewed: data['viewed'] ?? false,
+      senderPhone: data['senderPhone'] ?? '',
+      receiverPhone: data['receiverPhone'] ?? '',
+      viewed: false, // Always false initially, we track viewed status locally
+      docId: docId,
     );
+  }
+}
+
+/// Result class for send operations
+class SendTeneResult {
+  final bool success;
+  final String message;
+  final TeneData? tene;
+
+  SendTeneResult({required this.success, required this.message, this.tene});
+
+  // Factory constructor for success
+  factory SendTeneResult.success(TeneData tene) {
+    return SendTeneResult(success: true, message: 'Tene sent successfully!', tene: tene);
+  }
+
+  // Factory constructor for already sent
+  factory SendTeneResult.alreadySent() {
+    return SendTeneResult(
+      success: false,
+      message: 'You have already sent a Tene to this contact. Please wait for their response.',
+    );
+  }
+
+  // Factory constructor for error
+  factory SendTeneResult.error(String errorMessage) {
+    return SendTeneResult(success: false, message: 'Failed to send Tene: $errorMessage');
   }
 }
 
@@ -39,11 +75,11 @@ class TeneService {
   final FirebaseAuth _auth;
   final FlutterSecureStorage _secureStorage;
 
-  // In-memory set of seen pair IDs to avoid showing the same Tene twice
-  final Set<String> _seenPairIds = {};
+  // In-memory set of seen tene IDs to avoid showing the same Tene twice
+  final Set<String> _seenTeneIds = {};
 
-  // Reference to the collection of pair Tenes
-  late final CollectionReference _pairTenesCollection;
+  // Reference to the collection of tenes
+  late final CollectionReference _tenesCollection;
 
   /// Constructor with dependency injection for testability
   TeneService({
@@ -58,19 +94,7 @@ class TeneService {
              aOptions: AndroidOptions(encryptedSharedPreferences: true),
              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
            ) {
-    _pairTenesCollection = _firestore.collection('pairTenes');
-  }
-
-  /// Generate a deterministic pair ID that doesn't depend on the order of inputs
-  String makePairId(String a, String b) {
-    final sorted = [a, b]..sort();
-    return sorted.join('_');
-  }
-
-  /// Create a pair ID using user IDs instead of phone numbers
-  String makePairIdFromUids(String userAId, String userBId) {
-    final sorted = [userAId, userBId]..sort();
-    return sorted.join('_');
+    _tenesCollection = _firestore.collection('tenes');
   }
 
   /// Get current user ID
@@ -79,206 +103,260 @@ class TeneService {
   /// Get current user phone number
   String get currentUserPhone => _auth.currentUser?.phoneNumber ?? '';
 
-  /// Cache a user ID for a given phone number
-  Future<void> cacheUidForPhone(String phone, String uid) async {
-    await _secureStorage.write(key: 'phone_uid_${phone.trim()}', value: uid);
+  /// Normalize a phone number by removing all spaces and non-digit characters except the + sign
+  String normalizePhoneNumber(String phone) {
+    if (phone.isEmpty) return '';
+    return phone.replaceAll(RegExp(r'\s+'), ''); // Remove spaces
   }
 
-  /// Get cached user ID for a given phone number
-  Future<String?> getUidForPhone(String phone) async {
-    return await _secureStorage.read(key: 'phone_uid_${phone.trim()}');
+  /// Cache a document reference for a contact
+  Future<void> cacheDocRefForContact(String contactPhone, String docRef) async {
+    final normalizedPhone = normalizePhoneNumber(contactPhone);
+    await _secureStorage.write(key: 'tene_docref_${normalizedPhone.trim()}', value: docRef);
   }
 
-  /// Delete cached user ID for a given phone number
-  Future<void> deleteUidForPhone(String phone) async {
-    await _secureStorage.delete(key: 'phone_uid_${phone.trim()}');
+  /// Get cached document reference for a contact
+  Future<String?> getCachedDocRefForContact(String contactPhone) async {
+    final normalizedPhone = normalizePhoneNumber(contactPhone);
+    return await _secureStorage.read(key: 'tene_docref_${normalizedPhone.trim()}');
   }
 
-  /// Check if a pair Tene has been seen locally
-  bool hasSeen(String pairId) {
-    return _seenPairIds.contains(pairId);
+  /// Delete cached document reference for a contact
+  Future<void> deleteDocRefForContact(String contactPhone) async {
+    final normalizedPhone = normalizePhoneNumber(contactPhone);
+    await _secureStorage.delete(key: 'tene_docref_${normalizedPhone.trim()}');
   }
 
-  /// Mark a pair Tene as seen locally
-  void markSeen(String pairId) {
-    _seenPairIds.add(pairId);
+  /// Check if a tene has been seen locally
+  bool hasSeen(String teneId) {
+    return _seenTeneIds.contains(teneId);
   }
 
-  /// Determine if an invite should be shown (24h+ since last Tene and not viewed)
-  bool shouldShowInvite(DateTime lastSent, bool hasSeen) {
-    return !hasSeen && DateTime.now().difference(lastSent) > const Duration(hours: 24);
+  /// Mark a tene as seen locally
+  void markSeen(String teneId) {
+    _seenTeneIds.add(teneId);
   }
 
-  /// Generate an invite link with sender info embedded
-  Future<String> generateInviteLink({
-    required String senderPhone,
-    required String senderUid,
-  }) async {
-    // This would integrate with Firebase Dynamic Links
-    // For now, return a placeholder
-    return 'https://tene.app/invite?sender=$senderUid&phone=$senderPhone';
+  /// Check if we've already sent a Tene to this contact
+  Future<bool> hasSentTeneToContact(String contactPhone) async {
+    final normalizedPhone = normalizePhoneNumber(contactPhone);
+    return await _secureStorage.read(key: 'sent_tene_to_${normalizedPhone}') == 'true';
   }
 
-  /// Send a Tene with optimized single-document-per-pair approach
-  Future<void> sendTene({
+  /// Mark that we've sent a Tene to this contact
+  Future<void> markTeneSentToContact(String contactPhone) async {
+    final normalizedPhone = normalizePhoneNumber(contactPhone);
+    await _secureStorage.write(key: 'sent_tene_to_${normalizedPhone}', value: 'true');
+  }
+
+  /// Reset the sent status for a contact (after they've sent a Tene back)
+  Future<void> resetSentStatusForContact(String contactPhone) async {
+    final normalizedPhone = normalizePhoneNumber(contactPhone);
+    await _secureStorage.delete(key: 'sent_tene_to_$normalizedPhone');
+  }
+
+  /// Send a Tene with optimized document reference approach
+  Future<SendTeneResult> sendTene({
     required String toPhone,
     required String vibeType,
     required String gifUrl,
   }) async {
     final myUid = currentUserId;
-    final myPhone = currentUserPhone;
+    final myPhone = normalizePhoneNumber(currentUserPhone);
+    final normalizedToPhone = normalizePhoneNumber(toPhone);
 
     if (myUid.isEmpty || myPhone.isEmpty) {
-      throw Exception('You must be logged in to send a Tene');
+      return SendTeneResult.error('You must be logged in to send a Tene');
+    }
+
+    // Check if we've already sent a Tene to this contact
+    final alreadySent = await hasSentTeneToContact(normalizedToPhone);
+    if (alreadySent) {
+      return SendTeneResult.alreadySent();
     }
 
     try {
-      // Try to get cached UID for recipient
-      final receiverUid = await getUidForPhone(toPhone);
+      // Try to get cached document reference for this recipient
+      final cachedDocRef = await getCachedDocRefForContact(normalizedToPhone);
 
-      // Generate document ID based on UIDs if available, fallback to phones
-      final String pairId;
-      if (receiverUid != null && receiverUid.isNotEmpty) {
-        // Preferred: Use UIDs for the pair ID
-        pairId = makePairIdFromUids(myUid, receiverUid);
-      } else {
-        // Fallback: Use phone numbers for the pair ID
-        pairId = makePairId(myPhone, toPhone);
-      }
-
-      // Get document reference
-      final docRef = _pairTenesCollection.doc(pairId);
-
-      // Set (create or overwrite) the document
-      await docRef.set({
-        'lastGifUrl': gifUrl,
-        'lastVibeType': vibeType,
-        'lastSenderId': myUid,
-        'lastSenderPhone': myPhone,
-        'lastReceiverPhone': toPhone,
-        'lastSentAt': FieldValue.serverTimestamp(),
-        'viewed': false,
-        // Only include receiverId if we have it cached
-        if (receiverUid != null) 'receiverId': receiverUid,
-        // Increment total Tenes counter
+      // Data to set
+      final teneData = {
+        'gifUrl': gifUrl,
+        'vibeType': vibeType,
+        'senderId': myUid,
+        'senderPhone': myPhone,
+        'receiverPhone': normalizedToPhone,
+        'sentAt': FieldValue.serverTimestamp(),
         'totalTenes': FieldValue.increment(1),
-      }, SetOptions(merge: false)); // Use false to fully overwrite the document
-    } catch (e) {
-      throw Exception('Failed to send Tene: $e');
-    }
-  }
+      };
 
-  /// Observe incoming Tenes from a specific phone number
-  Stream<TeneData> observeIncomingTenes({required String otherPhone}) {
-    final myUid = currentUserId;
-    final myPhone = currentUserPhone;
-
-    if (myUid.isEmpty || myPhone.isEmpty) {
-      return Stream.empty();
-    }
-
-    // Try to get the other user's UID first
-    return getUidForPhone(otherPhone).asStream().asyncExpand((otherUid) {
-      String pairId;
-
-      // If we have the other user's UID, use UIDs for the pair ID
-      if (otherUid != null && otherUid.isNotEmpty) {
-        pairId = makePairIdFromUids(myUid, otherUid);
+      DocumentReference docRef;
+      if (cachedDocRef != null) {
+        // We've sent to this person before - update existing document
+        docRef = _firestore.doc(cachedDocRef);
+        await docRef.set(teneData, SetOptions(merge: true));
       } else {
-        // Fallback to using phone numbers
-        pairId = makePairId(myPhone, otherPhone);
+        // First time sending - create a new document with random ID
+        docRef = await _tenesCollection.add(teneData);
+
+        // Cache the document reference for future use
+        await cacheDocRefForContact(normalizedToPhone, docRef.path);
       }
 
-      // Get document reference
-      final docRef = _pairTenesCollection.doc(pairId);
+      // Mark that we've sent a Tene to this contact
+      await markTeneSentToContact(normalizedToPhone);
 
-      // Listen to document snapshots
-      return docRef
-          .snapshots()
-          .asyncMap((snapshot) async {
-            if (!snapshot.exists) {
-              return TeneData(gifUrl: '', vibeType: '', sentAt: DateTime.now(), senderId: '');
-            }
+      // When we send a Tene, mark our view status as false (waiting for their response)
+      if (cachedDocRef != null) {
+        _seenTeneIds.remove(cachedDocRef);
+      }
 
-            final data = snapshot.data() as Map<String, dynamic>;
+      // Create a TeneData object to return
+      final tene = TeneData(
+        gifUrl: gifUrl,
+        vibeType: vibeType,
+        sentAt: DateTime.now(),
+        senderId: myUid,
+        senderPhone: myPhone,
+        receiverPhone: normalizedToPhone,
+        docId: docRef.id,
+      );
 
-            // Only process if this is from the other person and not seen locally
-            if (data['lastSenderId'] != myUid && !hasSeen(pairId)) {
-              // Mark as seen locally
-              markSeen(pairId);
-
-              // Cache sender UID if not already cached
-              if (data['lastSenderPhone'] != null && data['lastSenderId'] != null) {
-                await cacheUidForPhone(data['lastSenderPhone'], data['lastSenderId']);
-              }
-
-              return TeneData.fromMap(data);
-            }
-
-            // Return empty data for Tenes we've already seen
-            return TeneData(gifUrl: '', vibeType: '', sentAt: DateTime.now(), senderId: '');
-          })
-          .where((tene) => tene.senderId.isNotEmpty);
-    });
-  }
-
-  /// Mark a Tene as viewed locally without a Firestore write
-  void markTeneViewed(String pairId) {
-    markSeen(pairId);
+      return SendTeneResult.success(tene);
+    } catch (e) {
+      return SendTeneResult.error(e.toString());
+    }
   }
 
   /// Get a stream of received Tenes for the current user
   Stream<List<TeneData>> getReceivedTenes() {
-    final myUid = currentUserId;
-    final myPhone = currentUserPhone;
+    final myPhone = normalizePhoneNumber(currentUserPhone);
 
-    if (myUid.isEmpty || myPhone.isEmpty) {
+    if (myPhone.isEmpty) {
       return Stream.value([]);
     }
 
-    // Query Firestore for documents where this user is involved
-    return _firestore
-        .collection('pairTenes')
-        .where(
-          Filter.or(
-            Filter('lastSenderPhone', isEqualTo: myPhone),
-            Filter('lastReceiverPhone', isEqualTo: myPhone),
-          ),
-        )
+    // Query Firestore for documents where this user is the receiver
+    return _tenesCollection
+        .where('receiverPhone', isEqualTo: myPhone)
+        .orderBy('sentAt', descending: true)
         .snapshots()
-        .map((snapshot) {
+        .asyncMap((snapshot) async {
           final List<TeneData> result = [];
 
           for (var doc in snapshot.docs) {
-            final data = doc.data();
+            final data = doc.data() as Map<String, dynamic>;
+            final senderPhone = normalizePhoneNumber(data['senderPhone'] as String? ?? '');
 
-            // Only include messages where the current user is the RECEIVER
-            if (data['lastSenderId'] != myUid) {
-              result.add(TeneData.fromMap(data));
+            // Cache the document reference for this sender
+            if (senderPhone.isNotEmpty) {
+              cacheDocRefForContact(senderPhone, doc.reference.path);
+
+              // When we receive a Tene, reset the sent status for this contact
+              // This allows the user to send a new Tene to this contact
+              await resetSentStatusForContact(senderPhone);
             }
+
+            // Create TeneData and check if it's been viewed
+            final tene = TeneData.fromMap(data, docId: doc.id);
+
+            // Check if we've seen this tene before
+            tene.viewed = hasSeen(doc.id);
+
+            // Add to results - we show all tenes, but mark which are viewed
+            result.add(tene);
           }
 
           return result;
         });
   }
 
+  /// Mark a Tene as viewed locally
+  void markTeneViewed(String teneId) {
+    // Just mark it as seen in our local cache
+    markSeen(teneId);
+  }
+
   /// Get a stream of all sent Tenes by the current user
-  Stream<List<TeneData>> getSentPairTenes() {
-    final myUid = currentUserId;
+  Stream<List<TeneData>> getSentTenes() {
     final myPhone = currentUserPhone;
 
-    if (myUid.isEmpty || myPhone.isEmpty) {
+    if (myPhone.isEmpty) {
       return Stream.value([]);
     }
 
     // Query Firestore for documents where this user is the sender
-    return _firestore
-        .collection('pairTenes')
-        .where('lastSenderId', isEqualTo: myUid)
+    return _tenesCollection
+        .where('senderPhone', isEqualTo: myPhone)
+        .orderBy('sentAt', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) => TeneData.fromMap(doc.data())).toList();
+          return snapshot.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return TeneData.fromMap(data, docId: doc.id);
+          }).toList();
         });
+  }
+
+  /// Get a stream of only unviewed Tenes
+  Stream<List<TeneData>> getUnviewedTenes() {
+    return getReceivedTenes().map((tenes) => tenes.where((tene) => !tene.viewed).toList());
+  }
+
+  /// Initialize sent status tracking on app start
+  Future<void> initializeSentStatusTracking() async {
+    // Check for any sent Tenes and mark contacts accordingly
+    final myPhone = normalizePhoneNumber(currentUserPhone);
+
+    if (myPhone.isEmpty) return;
+
+    try {
+      final snapshot =
+          await _tenesCollection
+              .where('senderPhone', isEqualTo: myPhone)
+              .orderBy('sentAt', descending: true)
+              .get();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final receiverPhone = normalizePhoneNumber(data['receiverPhone'] as String? ?? '');
+
+        if (receiverPhone.isNotEmpty) {
+          // Check if this contact has sent us a Tene in response
+          final hasResponse = await hasResponseFromContact(receiverPhone);
+
+          // If no response, mark as sent
+          if (!hasResponse) {
+            await markTeneSentToContact(receiverPhone);
+          }
+        }
+      }
+    } catch (e) {
+      // Silently handle errors during initialization
+      print('Error initializing sent status: $e');
+    }
+  }
+
+  /// Check if a contact has sent us a Tene
+  Future<bool> hasResponseFromContact(String contactPhone) async {
+    final myPhone = normalizePhoneNumber(currentUserPhone);
+    final normalizedContactPhone = normalizePhoneNumber(contactPhone);
+
+    if (myPhone.isEmpty) return false;
+
+    try {
+      final snapshot =
+          await _tenesCollection
+              .where('senderPhone', isEqualTo: normalizedContactPhone)
+              .where('receiverPhone', isEqualTo: myPhone)
+              .orderBy('sentAt', descending: true)
+              .limit(1)
+              .get();
+
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
   }
 }
 
@@ -287,26 +365,14 @@ final teneServiceProvider = Provider<TeneService>((ref) {
   return TeneService();
 });
 
-/// Provider for received Tenes only
+/// Provider for received Tenes
 final receivedTenesProvider = StreamProvider<List<TeneData>>((ref) {
   final teneService = ref.watch(teneServiceProvider);
   return teneService.getReceivedTenes();
 });
 
-/// Provider for generating a stream of all pair Tenes
-final allPairTenesProvider = StreamProvider<List<TeneData>>((ref) {
-  final teneService = ref.watch(teneServiceProvider);
-  return teneService.getReceivedTenes();
-});
-
-/// Provider for generating a stream of sent Tenes
+/// Provider for sent Tenes
 final sentTenesProvider = StreamProvider<List<TeneData>>((ref) {
   final teneService = ref.watch(teneServiceProvider);
-  return teneService.getSentPairTenes();
-});
-
-/// Provider family for observing Tenes from a specific phone
-final incomingTenesProvider = StreamProvider.family<TeneData, String>((ref, phone) {
-  final teneService = ref.watch(teneServiceProvider);
-  return teneService.observeIncomingTenes(otherPhone: phone);
+  return teneService.getSentTenes();
 });

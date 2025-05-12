@@ -29,9 +29,9 @@ class TeneCounterBadge extends ConsumerWidget {
     // Pass the phone number to the provider
     final tenesAsync = ref.watch(unviewedTenesByPhoneProvider(phoneNumber ?? ''));
 
-    // Handle single Tene (not a list)
+    // Handle list of Tenes
     final hasTene = tenesAsync.when(
-      data: (tene) => tene.senderId.isNotEmpty,
+      data: (tenes) => tenes.isNotEmpty,
       loading: () => false,
       error: (_, __) => false,
     );

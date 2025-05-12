@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/services/tene_service.dart';
 import 'package:tene/providers/auth_providers.dart';
+import 'package:flutter/widgets.dart';
 
 /// Provider for getting the currently authenticated user ID
 final userIdProvider = Provider<String>((ref) {
@@ -10,7 +11,14 @@ final userIdProvider = Provider<String>((ref) {
 
 /// Provider for the Tene Service
 final teneServiceProvider = Provider<TeneService>((ref) {
-  return TeneService();
+  final service = TeneService();
+
+  // Initialize sent status tracking
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    service.initializeSentStatusTracking();
+  });
+
+  return service;
 });
 
 /// Stream provider for all pair Tenes
@@ -26,18 +34,33 @@ final viewTeneProvider = Provider.family<void, String>((ref, pairId) {
 });
 
 /// Provider for observing incoming Tenes from a specific phone
-final incomingTenesProvider = StreamProvider.family<TeneData, String>((ref, phone) {
+final incomingTenesProvider = StreamProvider.family<List<TeneData>, String>((ref, phone) {
   final teneService = ref.watch(teneServiceProvider);
-  return teneService.observeIncomingTenes(otherPhone: phone);
+
+  // Filter received Tenes by the sender's phone number
+  return teneService.getReceivedTenes().map((tenes) {
+    return tenes.where((tene) => tene.senderPhone == phone).toList();
+  });
+});
+
+/// Provider for checking if we can send a Tene to a contact
+final canSendTeneToContactProvider = FutureProvider.family<bool, String>((ref, contactPhone) async {
+  final teneService = ref.watch(teneServiceProvider);
+  // We can send a Tene if we haven't already sent one to this contact
+  return !(await teneService.hasSentTeneToContact(contactPhone));
 });
 
 /// Provider for a function that sends a Tene
 final sendTeneProvider = Provider<
-  Future<void> Function({required String toPhone, required String vibeType, required String gifUrl})
+  Future<SendTeneResult> Function({
+    required String toPhone,
+    required String vibeType,
+    required String gifUrl,
+  })
 >((ref) {
   final teneService = ref.watch(teneServiceProvider);
 
   return ({required String toPhone, required String vibeType, required String gifUrl}) async {
-    await teneService.sendTene(toPhone: toPhone, vibeType: vibeType, gifUrl: gifUrl);
+    return teneService.sendTene(toPhone: toPhone, vibeType: vibeType, gifUrl: gifUrl);
   };
 });

@@ -44,7 +44,7 @@ final teneServiceProvider = Provider<TeneService>((ref) {
 /// Update unviewedTenesProvider to use TeneService
 final unviewedTenesProvider = StreamProvider<List<TeneData>>((ref) {
   final teneService = ref.watch(teneServiceProvider);
-  return teneService.getReceivedTenes();
+  return teneService.getUnviewedTenes();
 });
 
 /// Provider for tracking current Tene selected in the feed
@@ -105,12 +105,18 @@ final appThemeProvider = Provider<ThemeData>((ref) {
 final onboardingScreenIndexProvider = StateProvider<int>((ref) => 0);
 
 /// StreamProvider for unviewed Tenes by phone number
-final unviewedTenesByPhoneProvider = StreamProvider.family<TeneData, String>((ref, phoneNumber) {
+final unviewedTenesByPhoneProvider = StreamProvider.family<List<TeneData>, String>((
+  ref,
+  phoneNumber,
+) {
   final teneService = ref.watch(teneServiceProvider);
 
   if (phoneNumber.isEmpty) {
-    return Stream.value(TeneData(gifUrl: '', vibeType: '', sentAt: DateTime.now(), senderId: ''));
+    return Stream.value([]);
   }
 
-  return teneService.observeIncomingTenes(otherPhone: phoneNumber);
+  // Use getReceivedTenes and filter by the sender's phone number
+  return teneService.getReceivedTenes().map((tenes) {
+    return tenes.where((tene) => tene.senderPhone == phoneNumber).toList();
+  });
 });

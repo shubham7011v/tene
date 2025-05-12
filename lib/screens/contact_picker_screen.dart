@@ -4,7 +4,9 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:tene/providers/auth_providers.dart';
+import 'package:tene/providers/tene_providers.dart' as tene_providers;
 import 'package:tene/screens/home_screen.dart';
+import 'package:tene/widgets/tene_status_dialog.dart';
 
 // State provider for contact search query
 final contactSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -123,8 +125,8 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
       }
 
       // Send the Tene using TeneService
-      await ref
-          .read(teneServiceProvider)
+      final result = await ref
+          .read(tene_providers.teneServiceProvider)
           .sendTene(
             toPhone: _selectedPhone!,
             vibeType: ref.read(currentMoodProvider),
@@ -132,7 +134,25 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
           );
 
       if (mounted) {
-        _showSuccessDialog();
+        // Show the appropriate dialog based on the result
+        showTeneStatusDialog(
+          context,
+          result,
+          onDismiss: () {
+            if (result.success) {
+              // If successful, return to home screen
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                (route) => false,
+              );
+            } else {
+              // If failed, just close the dialog and stay on contact picker
+              setState(() {
+                _isSending = false;
+              });
+            }
+          },
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -142,31 +162,6 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
         });
       }
     }
-  }
-
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Tene Sent!'),
-            content: const Text('Your vibe has been sent successfully.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  // Return to home screen
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
-                    (route) => false,
-                  );
-                },
-                child: const Text('GREAT!'),
-              ),
-            ],
-          ),
-    );
   }
 
   @override

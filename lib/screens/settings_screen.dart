@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:tene/providers/auth_providers.dart';
+import 'package:tene/screens/debug_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -161,6 +162,21 @@ class SettingsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
+          ),
+
+          // Debug Section
+          const Divider(),
+          ListTile(
+            title: const Text('Debug Options'),
+            subtitle: const Text('Advanced tools for troubleshooting'),
+            leading: const Icon(Icons.bug_report),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const DebugSettingsScreen()),
+              );
+            },
           ),
         ],
       ),
