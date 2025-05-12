@@ -6,18 +6,8 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
     function userHasPhone(phoneNumber) {
       return request.auth.token.phone_number == phoneNumber;
-    }
-    
-    // User profiles
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isSignedIn() && isOwner(userId);
     }
     
     // PairTenes collection - using deterministic IDs based on phone numbers

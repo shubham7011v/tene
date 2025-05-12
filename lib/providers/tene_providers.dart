@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/services/tene_service.dart';
-import 'package:tene/providers/providers.dart';
+import 'package:tene/providers/auth_providers.dart';
 
 /// Provider for getting the currently authenticated user ID
 final userIdProvider = Provider<String>((ref) {

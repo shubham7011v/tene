@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/screens/login_screen.dart';
 import 'package:tene/screens/home_screen.dart';
-import 'package:tene/providers/providers.dart';
+import 'package:tene/providers/auth_providers.dart';
 
 /// AuthWrapper checks the authentication state and redirects to the appropriate screen
 class AuthWrapper extends ConsumerWidget {

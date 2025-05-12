@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:tene/providers/providers.dart';
-import 'package:tene/services/tene_service.dart' hide teneServiceProvider;
+import 'package:tene/providers/auth_providers.dart';
 import 'package:tene/screens/home_screen.dart';
 
 // State provider for contact search query

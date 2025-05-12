@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/providers/providers.dart';
+import 'package:tene/providers/auth_providers.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
-import 'package:tene/screens/tene_feed_screen.dart';
 import 'package:tene/screens/receive_tene_screen.dart';
-import 'package:tene/screens/profile_screen.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:tene/models/mood_data.dart';
 import 'package:tene/models/tene_model.dart';
@@ -13,6 +12,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tene/services/mood_storage_service.dart';
 import 'package:tene/services/tene_service.dart';
 import 'dart:math' as math;
+import 'package:tene/screens/phone_link_screen.dart';
+import 'package:tene/services/auth_service.dart';
+import 'package:tene/screens/settings_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -44,6 +46,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         });
       }
     });
+
+    // Check for phone number as soon as the widget initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkPhoneNumber();
+    });
   }
 
   @override
@@ -62,20 +69,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     super.dispose();
   }
 
+  Future<void> _checkPhoneNumber() async {
+    // Check if user has a phone number
+    final user = FirebaseAuth.instance.currentUser;
+    final hasPhone = user?.phoneNumber != null && user!.phoneNumber!.isNotEmpty;
+
+    // If no phone number, redirect to phone link screen
+    if (!hasPhone && mounted) {
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const PhoneLinkScreen()));
+    }
+  }
+
   // Preload Lottie animations and other heavy assets
   void _preloadAssets() async {
     // Store BuildContext in a local variable before any async calls
     final localContext = context;
     final currentMood = ref.read(currentMoodProvider);
-    final moodBackdropPath = moodLottieBackdropMap[currentMood] ?? moodLottieBackdropMap['loved']!;
-
-    // Preload the current mood's backdrop
-    if (mounted) {
-      await precacheImage(
-        AssetImage(moodBackdropPath.replaceAll('.json', '.png')),
-        localContext,
-      ).catchError((_) {});
-    }
 
     // Preload common animations
     await Future.delayed(const Duration(milliseconds: 100));
@@ -187,15 +198,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: Color.fromARGB(255, 0, 0, 0))),
+              ),
             ],
           ),
     );
-  }
-
-  // View all received Tenes
-  void _viewAllTenes() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TeneFeedScreen()));
   }
 
   // View a specific Tene
@@ -221,38 +230,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         context,
       ).push(MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: tene)));
     }
-  }
-
-  // Show theme mode picker
-  void _showThemeModePicker() {
-    final currentThemeMode = ref.read(appThemeModeProvider);
-    final moodData = ref.watch(currentMoodDataProvider);
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Choose Theme Mode'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children:
-                  AppThemeMode.values.map((mode) {
-                    return RadioListTile<AppThemeMode>(
-                      title: Text(mode.label),
-                      value: mode,
-                      groupValue: currentThemeMode,
-                      activeColor: moodData.secondaryColor,
-                      onChanged: (value) {
-                        if (value != null) {
-                          ref.read(appThemeModeProvider.notifier).state = value;
-                          Navigator.pop(context);
-                        }
-                      },
-                    );
-                  }).toList(),
-            ),
-          ),
-    );
   }
 
   // Show notification settings
@@ -285,106 +262,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   // Show settings menu
   void _showSettingsMenu() {
-    final moodData = ref.watch(currentMoodDataProvider);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder:
-          (context) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildSettingsItem(
-                  icon: Icons.person,
-                  label: 'Your Profile',
-                  color: moodData.primaryColor,
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                    );
-                  },
-                ),
-                _buildSettingsItem(
-                  icon: Icons.palette,
-                  label: 'Theme Mode',
-                  color: moodData.primaryColor,
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showThemeModePicker();
-                  },
-                ),
-                _buildSettingsItem(
-                  icon: Icons.notifications,
-                  label: 'Notification Settings',
-                  color: moodData.primaryColor,
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showNotificationSettings();
-                  },
-                ),
-                _buildSettingsItem(
-                  icon: Icons.history,
-                  label: 'Tene History (dev)',
-                  color: moodData.primaryColor,
-                  onTap: () {
-                    Navigator.pop(context);
-                    _viewAllTenes();
-                  },
-                ),
-                _buildSettingsItem(
-                  icon: Icons.logout,
-                  label: 'Logout',
-                  color: Colors.red.shade400,
-                  onTap: () async {
-                    Navigator.pop(context);
-                    await FirebaseAuth.instance.signOut();
-                  },
-                ),
-              ],
-            ),
-          ),
-    );
-  }
-
-  // Build settings menu item
-  Widget _buildSettingsItem({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: color),
-      title: Text(
-        label,
-        style: TextStyle(color: Colors.grey.shade800, fontWeight: FontWeight.w500),
-      ),
-      onTap: onTap,
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
     final moodData = ref.watch(currentMoodDataProvider);
-    final seasonalTheme = ref.watch(currentSeasonalThemeProvider);
-    final moodLottiePath = ref.watch(currentMoodLottieProvider);
-    final moodBackdropPath = ref.watch(currentMoodBackdropProvider);
     final tenesAsync = ref.watch(unviewedTenesProvider);
-    final userProfile = ref.watch(userProfileProvider);
+    final user = ref.watch(authStateProvider).value;
     final currentMood = ref.watch(currentMoodProvider);
 
     // Winter theme colors
     final lightBlue = const Color(0xFFAEC6CF);
     final snowBlue = const Color(0xFFCDE1F0);
-    final deepBlue = const Color(0xFF6A8CAF);
+    const deepBlue = Color(0xFF2D4A6D);
 
     // Loading placeholder
     if (_isLoading) {
@@ -411,12 +302,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Tene',
           style: TextStyle(
-            color: Colors.white,
+            fontSize: 24,
             fontWeight: FontWeight.bold,
-            fontSize: 32,
+            color: deepBlue,
             shadows: [Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 1))],
           ),
         ),
@@ -438,20 +329,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 ),
                 child: Hero(
                   tag: 'profileAvatar',
-                  child: CircleAvatar(
-                    backgroundColor: deepBlue.withOpacity(0.8),
-                    radius: 24,
-                    child:
-                        userProfile['avatarUrl'] != null
-                            ? ClipOval(
+                  child:
+                      user != null
+                          ? CircleAvatar(
+                            backgroundColor: deepBlue.withOpacity(0.8),
+                            radius: 24,
+                            child: ClipOval(
                               child: Image.network(
-                                userProfile['avatarUrl']!,
+                                user.photoURL ?? '',
                                 width: 48,
                                 height: 48,
                                 fit: BoxFit.cover,
                                 errorBuilder:
                                     (_, __, ___) => Text(
-                                      userProfile['initialLetter'],
+                                      user.displayName?.substring(0, 1) ?? 'U',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -459,22 +350,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                                       ),
                                     ),
                               ),
-                            )
-                            : Text(
-                              userProfile['initialLetter'],
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
                             ),
-                  ),
+                          )
+                          : const CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                 ),
               ),
             ),
           ),
         ],
       ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: moodData.primaryColor.withOpacity(0.3),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          backgroundColor: moodData.fabTheme.backgroundColor,
+          foregroundColor: moodData.fabTheme.foregroundColor,
+          elevation: moodData.fabElevation,
+          shape: moodData.fabTheme.shape,
+          icon: Icon(moodData.fabIcon),
+          label: Text('Send a ${moodData.name} Tene', style: moodData.textStyle),
+          onPressed: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (context) => const GiphyPickerScreen()));
+          },
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final maxWidth = constraints.maxWidth;
@@ -483,34 +392,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           return Stack(
             children: [
               // Animated Mood Background
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 600),
-                child: Lottie.asset(
-                  moodBackdropPath,
-                  key: ValueKey<String>(currentMood),
-                  fit: BoxFit.cover,
-                  width: maxWidth,
-                  height: maxHeight,
-                  errorBuilder: (context, error, stackTrace) {
-                    // Fallback gradient if Lottie animation can't be loaded
-                    return Container(
-                      key: ValueKey<String>('fallback-$currentMood'),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            moodData.primaryColor.withOpacity(0.6),
-                            moodData.secondaryColor.withOpacity(0.4),
-                            Colors.white.withOpacity(0.8),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
               // Gradient overlay for better text readability
               Positioned.fill(
                 child: Container(
@@ -528,51 +409,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               SafeArea(
                 child: Column(
                   children: [
-                    if (seasonalTheme.tagline.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: maxHeight * 0.02,
-                          horizontal: maxWidth * 0.05,
-                        ),
-                        child: Text(
-                          seasonalTheme.tagline,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(color: Colors.black54, offset: Offset(1, 1), blurRadius: 3),
-                            ],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-
                     // Mood Display Area (Full screen gesture area)
                     Expanded(
                       flex: 1,
                       child: GestureDetector(
                         onTap: _showMoodSelector,
-                        onVerticalDragEnd: (details) {
-                          // Swipe up cycles to next mood
-                          if (details.velocity.pixelsPerSecond.dy < -300) {
-                            _cycleMood();
-                          }
-                          // Swipe down cycles to previous mood
-                          else if (details.velocity.pixelsPerSecond.dy > 300) {
-                            _cycleMoodReverse();
-                          }
-                        },
-                        onHorizontalDragEnd: (details) {
-                          // Swipe left cycles to next mood
-                          if (details.velocity.pixelsPerSecond.dx < -300) {
-                            _cycleMood();
-                          }
-                          // Swipe right cycles to previous mood
-                          else if (details.velocity.pixelsPerSecond.dx > 300) {
-                            _cycleMoodReverse();
-                          }
-                        },
+                        onDoubleTap: _cycleMood,
                         child: Center(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 20.0),
@@ -632,7 +474,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                                           ),
                                           const SizedBox(height: 16),
                                           Text(
-                                            'Tap to choose mood\nSwipe to cycle',
+                                            'Tap to choose mood\nDouble tap to cycle',
                                             style: TextStyle(
                                               fontSize: 16,
                                               color: moodData.secondaryColor.withOpacity(0.9),
@@ -688,18 +530,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           );
         },
       ),
-
-      // Centered send icon FAB
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: GestureDetector(
-        onTap: _startTeneFlow,
-        child: Lottie.asset(
-          height: 100,
-          'assets/animations/send_icon_blue.json',
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => const Icon(Icons.send, color: Colors.white),
-        ),
-      ),
     );
   }
 
@@ -733,15 +563,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF5A7A99), fontSize: 14),
           ),
-          const SizedBox(height: 20),
-          TextButton(
-            onPressed: _viewAllTenes,
-            style: TextButton.styleFrom(foregroundColor: moodData.secondaryColor),
-            child: const Text(
-              'View All Tenes',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-            ),
-          ),
         ],
       ),
     );
@@ -774,23 +595,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             },
           ),
         ),
-        Center(
-          child: TextButton(
-            onPressed: _viewAllTenes,
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF2D4A6D),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('View All', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_forward_ios, size: 12),
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -813,7 +617,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         // If it's a phone number, format it nicely
         if (senderDisplay.startsWith('+')) {
           // Just show last 4 digits with *** prefix
-          senderDisplay = "***" + senderDisplay.substring(math.max(0, senderDisplay.length - 4));
+          senderDisplay = "***${senderDisplay.substring(math.max(0, senderDisplay.length - 4))}";
         }
       }
     }

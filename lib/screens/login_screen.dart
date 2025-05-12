@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:tene/providers/providers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:tene/screens/home_screen.dart';
 import 'package:tene/screens/phone_link_screen.dart';
 import 'package:tene/utils/sign_in_config.dart';
@@ -34,11 +35,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      // Check if Google account is linked
-      final isLinked = await ref.read(authServiceProvider).isGoogleLinked();
-
-      if (isLinked && mounted) {
-        // If linked, try to sign in with Google directly
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && mounted) {
         await _signInWithGoogle();
       }
     } catch (e) {
@@ -62,9 +60,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
-    // Store BuildContext in a local variable before any async calls
     final localContext = context;
-
     if (!mounted) return;
 
     setState(() {
@@ -73,39 +69,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final userCredential = await ref.read(authServiceProvider).signInWithGoogle();
-
-      // If null, the sign-in was cancelled by the user
-      if (userCredential == null) {
-        if (!mounted) return;
-
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
         setState(() {
           _isLoading = false;
-          // Don't show error for user cancellation
         });
         return;
       }
 
-      // Check if phone number is linked
-      final isPhoneLinked = await ref.read(authServiceProvider).isPhoneLinked();
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCredential.user;
 
       if (mounted && localContext.mounted) {
-        if (isPhoneLinked) {
-          // If phone is linked, go to home screen
+        if (user?.phoneNumber != null) {
           Navigator.of(
             localContext,
           ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
         } else {
-          // If phone is not linked, go to phone link screen
           Navigator.of(
             localContext,
           ).pushReplacement(MaterialPageRoute(builder: (_) => const PhoneLinkScreen()));
         }
       }
     } catch (e) {
-      // Use the error formatter
       final errorMessage = SignInConfig.formatSignInError(e);
-
       if (!mounted) return;
 
       setState(() {
@@ -113,7 +106,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _errorMessage = errorMessage;
       });
 
-      // Show a snackbar with error details
       if (mounted && localContext.mounted) {
         ScaffoldMessenger.of(localContext).showSnackBar(
           SnackBar(

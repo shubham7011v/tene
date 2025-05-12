@@ -104,31 +104,14 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = ref.watch(moodThemeProvider);
+    final theme = ref.watch(appThemeProvider);
 
     // Determine app title based on environment
     final appTitle = EnvironmentConfig.isDevelopment ? 'Tene Dev' : 'Tene';
 
     return MaterialApp(
       title: appTitle,
-      theme: theme.copyWith(
-        // Add visualDensity to reduce paddings across the app
-        visualDensity: VisualDensity.compact,
-        // Make buttons more compact
-        buttonTheme: const ButtonThemeData(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          minWidth: 0,
-          height: 36,
-        ),
-        // Make text buttons more compact
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-            minimumSize: const Size(0, 36),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
-      ),
+      theme: ref.watch(appThemeProvider),
       home: Stack(
         children: [
           const AuthWrapper(),

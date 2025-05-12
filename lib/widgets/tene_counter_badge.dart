@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tene/providers/providers.dart';
 
 /// A widget that displays a badge with the count of unviewed Tenes
@@ -21,11 +22,12 @@ class TeneCounterBadge extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Get the user's phone number first
-    final phoneNumber = ref.watch(userPhoneNumberProvider);
+    // Get the user's phone number from Firebase Auth
+    final user = FirebaseAuth.instance.currentUser;
+    final phoneNumber = user?.phoneNumber;
 
     // Pass the phone number to the provider
-    final tenesAsync = ref.watch(unviewedTenesByPhoneProvider(phoneNumber));
+    final tenesAsync = ref.watch(unviewedTenesByPhoneProvider(phoneNumber ?? ''));
 
     // Handle single Tene (not a list)
     final hasTene = tenesAsync.when(
