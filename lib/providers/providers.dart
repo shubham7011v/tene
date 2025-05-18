@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/models/mood_data.dart';
-import 'package:tene/models/tene_model.dart';
+import 'package:tene/models/tene_data.dart';
 import 'package:tene/services/tene_service.dart';
 
 /// Simple weather data model for display
@@ -48,7 +48,7 @@ final unviewedTenesProvider = StreamProvider<List<TeneData>>((ref) {
 });
 
 /// Provider for tracking current Tene selected in the feed
-final selectedTeneProvider = StateProvider<TeneModel?>((ref) => null);
+final selectedTeneProvider = StateProvider<TeneData?>((ref) => null);
 
 /// Provider for tracking current mood selection
 final currentMoodProvider = StateProvider<String>((ref) => 'loved');

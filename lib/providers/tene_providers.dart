@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tene/models/tene_data.dart';
 import 'package:tene/services/tene_service.dart';
 import 'package:tene/providers/auth_providers.dart';
 import 'package:flutter/widgets.dart';
@@ -22,9 +23,9 @@ final teneServiceProvider = Provider<TeneService>((ref) {
 });
 
 /// Provider for a function that views a Tene
-final viewTeneProvider = Provider.family<void, String>((ref, pairId) {
+final viewTeneProvider = Provider.family<void, String>((ref, senderPhone) {
   final teneService = ref.watch(teneServiceProvider);
-  teneService.markTeneViewed(pairId);
+  teneService.markTeneViewed(senderPhone);
 });
 
 /// Provider for observing incoming Tenes from a specific phone

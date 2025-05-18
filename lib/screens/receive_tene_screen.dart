@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/models/mood_data.dart';
-import 'package:tene/models/tene_model.dart';
+import 'package:tene/models/tene_data.dart';
 import 'package:tene/providers/providers.dart' as main_providers;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
@@ -9,7 +9,7 @@ import 'package:tene/screens/home_screen.dart';
 import 'dart:async';
 
 class ReceiveTeneScreen extends ConsumerStatefulWidget {
-  final TeneModel tene;
+  final TeneData tene;
 
   const ReceiveTeneScreen({super.key, required this.tene});
 
@@ -89,17 +89,28 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
     }
   }
 
-  // Mark the Tene as viewed in Firestore
+  // Mark the Tene as viewed in secure storage
   void _markAsViewed() async {
     // Only mark as viewed if it's not already viewed
     if (!widget.tene.viewed && !_isTeneViewed) {
-      // Mark as viewed in secure storage
-      await ref.read(main_providers.teneServiceProvider).markTeneViewed(widget.tene.id);
+      // Mark as viewed in secure storage using sender's phone number
+      await ref.read(main_providers.teneServiceProvider).markTeneViewed(widget.tene.senderPhone);
 
       // Update local state
       setState(() {
         _isTeneViewed = true;
       });
+
+      // Refresh the unviewed Tenes stream
+      ref.invalidate(main_providers.unviewedTenesProvider);
+
+      // Navigate back to home screen
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      }
     }
   }
 
@@ -249,7 +260,7 @@ class _ReceiveTeneScreenState extends ConsumerState<ReceiveTeneScreen>
 
                   // Sender info
                   Text(
-                    'From ${widget.tene.senderId}',
+                    'From ${widget.tene.senderPhone}',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,

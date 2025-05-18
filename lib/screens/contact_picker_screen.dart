@@ -212,38 +212,6 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
                 ),
               ),
 
-              // const SizedBox(height: 16),
-
-              // // Permission status
-              // if (permissionStatus != PermissionStatus.granted)
-              //   Padding(
-              //     padding: const EdgeInsets.all(16.0),
-              //     child: Column(
-              //       children: [
-              //         const Icon(Icons.contact_phone, size: 48),
-              //         const SizedBox(height: 8),
-              //         const Text(
-              //           'Contact permission required',
-              //           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              //         ),
-              //         const SizedBox(height: 8),
-              //         const Text(
-              //           'Please grant permission to access your contacts',
-              //           textAlign: TextAlign.center,
-              //         ),
-              //         const SizedBox(height: 16),
-              //         ElevatedButton(
-              //           onPressed: _checkContactPermission,
-              //           style: ElevatedButton.styleFrom(
-              //             backgroundColor: moodData.secondaryColor,
-              //             foregroundColor: Colors.white,
-              //           ),
-              //           child: const Text('Grant Permission'),
-              //         ),
-              //       ],
-              //     ),
-              //   ),
-
               // Contacts list
               Expanded(
                 child: contactsAsync.when(

@@ -8,7 +8,6 @@ import 'package:tene/screens/receive_tene_screen.dart';
 import 'package:tene/screens/all_tenes_screen.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:tene/models/mood_data.dart';
-import 'package:tene/models/tene_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tene/services/mood_storage_service.dart';
 
@@ -251,28 +250,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   }
 
   // View a specific Tene
-  void _viewTene(tene) {
-    // Convert TeneData to TeneModel if needed
-    if (tene is! TeneModel) {
-      final teneModel = TeneModel(
-        id: "${tene.senderId}_${DateTime.now().millisecondsSinceEpoch}",
-        senderId: tene.senderId,
-        receiverId: FirebaseAuth.instance.currentUser?.uid ?? '',
-        vibeType: tene.vibeType,
-        gifUrl: tene.gifUrl,
-        sentAt: tene.sentAt,
-        viewed: false,
-      );
-      ref.read(selectedTeneProvider.notifier).state = teneModel;
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: teneModel)));
-    } else {
-      ref.read(selectedTeneProvider.notifier).state = tene;
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: tene)));
-    }
+  void _viewTene(tene) async {
+    // Check if this Tene has been viewed
+    final teneService = ref.read(teneServiceProvider);
+    final isViewed = await teneService.hasSeenTeneFromContact(tene.senderPhone);
+
+    // Update the viewed status
+    tene.viewed = isViewed;
+
+    ref.read(selectedTeneProvider.notifier).state = tene;
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: tene)));
   }
 
   // Show settings menu

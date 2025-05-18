@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/providers/providers.dart';
-import 'package:tene/models/tene_model.dart';
+import 'package:tene/models/tene_data.dart';
 import 'package:tene/providers/tene_providers.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:tene/screens/receive_tene_screen.dart';
 import 'package:tene/models/mood_data.dart';
-import 'package:tene/services/tene_service.dart';
-import 'dart:math' as math;
+import 'package:tene/providers/contact_providers.dart';
 
 class AllTenesScreen extends ConsumerWidget {
   const AllTenesScreen({super.key});
@@ -60,7 +59,7 @@ class AllTenesScreen extends ConsumerWidget {
             itemCount: tenes.length,
             itemBuilder: (context, index) {
               final tene = tenes[index];
-              return _buildTeneCard(context, tene, moodData);
+              return _buildTeneCard(context, ref, tene, moodData);
             },
           );
         },
@@ -72,22 +71,13 @@ class AllTenesScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTeneCard(BuildContext context, TeneData tene, MoodData moodData) {
+  Widget _buildTeneCard(BuildContext context, WidgetRef ref, TeneData tene, MoodData moodData) {
     // Get mood color and emoji
     final moodColor = moodMap[tene.vibeType]?.primaryColor ?? Colors.purple;
     final emoji = moodMap[tene.vibeType]?.emoji ?? '😊';
 
-    // Format sender display
-    String senderDisplay = 'Someone';
-    if (tene.senderId.isNotEmpty) {
-      final parts = tene.senderId.split('@');
-      if (parts.isNotEmpty) {
-        senderDisplay = parts[0];
-        if (senderDisplay.startsWith('+')) {
-          senderDisplay = "***${senderDisplay.substring(math.max(0, senderDisplay.length - 4))}";
-        }
-      }
-    }
+    // Get contact name from phone number
+    final contactNameAsync = ref.watch(contactNameProvider(tene.senderPhone));
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -98,19 +88,9 @@ class AllTenesScreen extends ConsumerWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          // Convert TeneData to TeneModel
-          final teneModel = TeneModel(
-            id: tene.docId,
-            senderId: tene.senderId,
-            receiverId: tene.receiverId,
-            vibeType: tene.vibeType,
-            gifUrl: tene.gifUrl,
-            sentAt: tene.sentAt,
-            viewed: tene.viewed,
-          );
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: teneModel)),
+            MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: tene)),
           );
         },
         child: Padding(
@@ -134,13 +114,35 @@ class AllTenesScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '$senderDisplay sent you a Tene',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D4A6D),
-                      ),
+                    // Show contact name from the provider
+                    contactNameAsync.when(
+                      data:
+                          (name) => Text(
+                            '$name sent you a Tene',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D4A6D),
+                            ),
+                          ),
+                      loading:
+                          () => Text(
+                            'Someone sent you a Tene',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D4A6D),
+                            ),
+                          ),
+                      error:
+                          (_, __) => Text(
+                            'Someone sent you a Tene',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D4A6D),
+                            ),
+                          ),
                     ),
                     Text(
                       timeago.format(tene.sentAt),
