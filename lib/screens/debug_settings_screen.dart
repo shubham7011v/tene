@@ -175,7 +175,7 @@ class _DebugSettingsScreenState extends ConsumerState<DebugSettingsScreen> {
   Future<void> _forceSyncFromFirestore() async {
     // First check if cache is completely empty
     final allValues = await _secureStorage.readAll();
-    if (!allValues.isEmpty) {
+    if (allValues.isNotEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

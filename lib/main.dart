@@ -19,13 +19,20 @@ void main() async {
     await EnvironmentConfig.initialize(env: Environment.development);
 
     // Initialize Firebase first
-    await Firebase.initializeApp(options: DefaultDevFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options:
+          EnvironmentConfig.isProduction
+              ? DefaultProdFirebaseOptions.currentPlatform
+              : DefaultDevFirebaseOptions.currentPlatform,
+    );
+
+    // Initialize other services
+    await ServiceLocator.instance.initialize();
 
     runApp(const ProviderScope(child: MyApp()));
   } catch (e) {
-    debugPrint('Error during initialization: $e');
-    // Try to recover
-    runApp(const ProviderScope(child: MyApp()));
+    print('Error initializing app: $e');
+    rethrow;
   }
 }
 
@@ -104,8 +111,6 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = ref.watch(appThemeProvider);
-
     // Determine app title based on environment
     final appTitle = EnvironmentConfig.isDevelopment ? 'Tene Dev' : 'Tene';
 

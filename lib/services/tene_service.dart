@@ -233,13 +233,13 @@ class TeneService {
     final normalizedPhone = normalizePhoneNumber(contactPhone);
 
     // Only check secure storage, never load from Firestore for individual contacts
-    return await _secureStorage.read(key: 'sent_tene_to_${normalizedPhone}') == 'true';
+    return await _secureStorage.read(key: 'sent_tene_to_$normalizedPhone') == 'true';
   }
 
   /// Mark that we've sent a Tene to this contact
   Future<void> markTeneSentToContact(String contactPhone) async {
     final normalizedPhone = normalizePhoneNumber(contactPhone);
-    await _secureStorage.write(key: 'sent_tene_to_${normalizedPhone}', value: 'true');
+    await _secureStorage.write(key: 'sent_tene_to_$normalizedPhone', value: 'true');
 
     // Also store sent status in Firestore for persistence
     final userUid = currentUserId;

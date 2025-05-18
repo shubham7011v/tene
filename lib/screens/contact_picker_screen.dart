@@ -18,14 +18,9 @@ final contactPermissionProvider = StateProvider<PermissionStatus>((ref) {
 
 // Provider for filtered contacts based on search query
 final filteredContactsProvider = FutureProvider<List<Contact>>((ref) async {
-  final permissionStatus = ref.watch(contactPermissionProvider);
   final searchQuery = ref.watch(contactSearchQueryProvider).toLowerCase();
 
-  if (permissionStatus != PermissionStatus.granted) {
-    return [];
-  }
-
-  // Fetch all contacts with phone numbers
+  // Get all contacts
   final contacts = await FlutterContacts.getContacts(withProperties: true, withThumbnail: false);
 
   // Filter contacts based on search query
@@ -69,11 +64,8 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
   // Check and request contact permission
   Future<void> _checkContactPermission() async {
     final status = await Permission.contacts.status;
-    ref.read(contactPermissionProvider.notifier).state = status;
-
     if (status != PermissionStatus.granted) {
-      final result = await Permission.contacts.request();
-      ref.read(contactPermissionProvider.notifier).state = result;
+      await Permission.contacts.request();
     }
   }
 
@@ -220,37 +212,37 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              // const SizedBox(height: 16),
 
-              // Permission status
-              if (permissionStatus != PermissionStatus.granted)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.contact_phone, size: 48),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Contact permission required',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Please grant permission to access your contacts',
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _checkContactPermission,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: moodData.secondaryColor,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Grant Permission'),
-                      ),
-                    ],
-                  ),
-                ),
+              // // Permission status
+              // if (permissionStatus != PermissionStatus.granted)
+              //   Padding(
+              //     padding: const EdgeInsets.all(16.0),
+              //     child: Column(
+              //       children: [
+              //         const Icon(Icons.contact_phone, size: 48),
+              //         const SizedBox(height: 8),
+              //         const Text(
+              //           'Contact permission required',
+              //           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              //         ),
+              //         const SizedBox(height: 8),
+              //         const Text(
+              //           'Please grant permission to access your contacts',
+              //           textAlign: TextAlign.center,
+              //         ),
+              //         const SizedBox(height: 16),
+              //         ElevatedButton(
+              //           onPressed: _checkContactPermission,
+              //           style: ElevatedButton.styleFrom(
+              //             backgroundColor: moodData.secondaryColor,
+              //             foregroundColor: Colors.white,
+              //           ),
+              //           child: const Text('Grant Permission'),
+              //         ),
+              //       ],
+              //     ),
+              //   ),
 
               // Contacts list
               Expanded(

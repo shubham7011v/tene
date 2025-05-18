@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:tene/providers/auth_providers.dart';
+import 'package:tene/providers/contact_providers.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/receive_tene_screen.dart';
+import 'package:tene/screens/tene_feed_screen.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:tene/models/mood_data.dart';
 import 'package:tene/models/tene_model.dart';
-import 'package:lottie/lottie.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tene/services/mood_storage_service.dart';
-import 'package:tene/services/tene_service.dart';
-import 'dart:math' as math;
+
 import 'package:tene/screens/phone_link_screen.dart';
-import 'package:tene/services/auth_service.dart';
 import 'package:tene/screens/settings_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -207,6 +206,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     );
   }
 
+  // View all received Tenes
+  void _viewAllTenes() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TeneFeedScreen()));
+  }
+
   // View a specific Tene
   void _viewTene(tene) {
     // Convert TeneData to TeneModel if needed
@@ -230,34 +234,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         context,
       ).push(MaterialPageRoute(builder: (context) => ReceiveTeneScreen(tene: tene)));
     }
-  }
-
-  // Show notification settings
-  void _showNotificationSettings() {
-    final notificationsEnabled = ref.read(notificationsEnabledProvider);
-    final moodData = ref.watch(currentMoodDataProvider);
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Notification Settings'),
-            content: SwitchListTile(
-              title: const Text('Enable Notifications'),
-              value: notificationsEnabled,
-              activeColor: moodData.secondaryColor,
-              onChanged: (value) {
-                ref.read(notificationsEnabledProvider.notifier).state = value;
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close', style: TextStyle(color: moodData.secondaryColor)),
-              ),
-            ],
-          ),
-    );
   }
 
   // Show settings menu
@@ -587,17 +563,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   shadows: [Shadow(color: Colors.white, offset: Offset(1, 1), blurRadius: 2)],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.refresh, color: Color(0xFF2D4A6D)),
-                onPressed: () {
-                  // Force refresh the unviewedTenesProvider
-                  ref.invalidate(unviewedTenesProvider);
-                },
-                tooltip: 'Refresh Recent Vibes',
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                child: ElevatedButton(
+                  onPressed: _viewAllTenes,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2D4A6D).withOpacity(0.1),
+                    foregroundColor: const Color(0xFF2D4A6D),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: const Color(0xFF2D4A6D).withOpacity(0.2), width: 1),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View All Vibes',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          color: const Color(0xFF2D4A6D),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
         ),
+
         Expanded(
           child: ListView.builder(
             padding: EdgeInsets.zero,
@@ -620,20 +618,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     // Get emoji from the mood map or fallback
     final emoji = moodMap[tene.vibeType]?.emoji ?? '😊';
 
-    // Format sender display
-    String senderDisplay = 'Someone';
-    if (tene.senderId.isNotEmpty) {
-      // Extract just the first part of the phone number or a shorter ID for display
-      final parts = tene.senderId.split('@');
-      if (parts.isNotEmpty) {
-        senderDisplay = parts[0];
-        // If it's a phone number, format it nicely
-        if (senderDisplay.startsWith('+')) {
-          // Just show last 4 digits with *** prefix
-          senderDisplay = "***${senderDisplay.substring(math.max(0, senderDisplay.length - 4))}";
-        }
-      }
-    }
+    // Get contact name from phone number
+    final contactNameAsync = ref.watch(contactNameProvider(tene.senderPhone ?? ''));
 
     // Use sentAt for the timestamp
     final timestamp = tene.sentAt;
@@ -668,13 +654,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '$senderDisplay sent you a Tene',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D4A6D),
-                      ),
+                    // Show contact name from the provider
+                    contactNameAsync.when(
+                      data:
+                          (name) => Text(
+                            '$name sent you a Tene',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D4A6D),
+                            ),
+                          ),
+                      loading:
+                          () => Text(
+                            'Someone sent you a Tene',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D4A6D),
+                            ),
+                          ),
+                      error:
+                          (_, __) => Text(
+                            'Someone sent you a Tene',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D4A6D),
+                            ),
+                          ),
                     ),
                     Text(
                       timeago.format(timestamp),

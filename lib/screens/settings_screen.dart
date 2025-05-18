@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:tene/providers/providers.dart';
 import 'package:tene/providers/auth_providers.dart';
 import 'package:tene/screens/debug_settings_screen.dart';
+import 'package:tene/config/env_config.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -19,7 +20,7 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text('Tene ${EnvironmentConfig.isDevelopment ? '(Dev)' : ''}'),
         backgroundColor: moodData.primaryColor,
         foregroundColor: Colors.black,
       ),
@@ -37,87 +38,36 @@ class SettingsScreen extends ConsumerWidget {
                 // Profile Avatar with Hero Animation
                 Hero(
                   tag: 'profileAvatar',
-                  flightShuttleBuilder: (
-                    BuildContext flightContext,
-                    Animation<double> animation,
-                    HeroFlightDirection flightDirection,
-                    BuildContext fromHeroContext,
-                    BuildContext toHeroContext,
-                  ) {
-                    return Material(
-                      color: Colors.transparent,
-                      child: AnimatedBuilder(
-                        animation: animation,
-                        builder: (context, child) {
-                          return Transform.scale(scale: animation.value, child: child);
-                        },
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundColor: moodData.primaryColor.withOpacity(0.2),
-                          child:
-                              user.photoURL != null
-                                  ? ClipOval(
-                                    child: Image.network(
-                                      user.photoURL!,
-                                      width: 100,
-                                      height: 100,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (_, __, ___) => Text(
-                                            user.displayName?.substring(0, 1).toUpperCase() ?? 'U',
-                                            style: TextStyle(
-                                              color: moodData.primaryColor,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 40,
-                                            ),
-                                          ),
-                                    ),
-                                  )
-                                  : Text(
-                                    user.displayName?.substring(0, 1).toUpperCase() ?? 'U',
-                                    style: TextStyle(
-                                      color: moodData.primaryColor,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 40,
-                                    ),
-                                  ),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Material(
-                    color: Colors.transparent,
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: moodData.primaryColor.withOpacity(0.2),
-                      child:
-                          user.photoURL != null
-                              ? ClipOval(
-                                child: Image.network(
-                                  user.photoURL!,
-                                  width: 100,
-                                  height: 100,
-                                  fit: BoxFit.cover,
-                                  errorBuilder:
-                                      (_, __, ___) => Text(
-                                        user.displayName?.substring(0, 1).toUpperCase() ?? 'U',
-                                        style: TextStyle(
-                                          color: moodData.primaryColor,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 40,
-                                        ),
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: moodData.primaryColor.withOpacity(0.2),
+                    child:
+                        user.photoURL != null
+                            ? ClipOval(
+                              child: Image.network(
+                                user.photoURL!,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) => Text(
+                                      user.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                                      style: TextStyle(
+                                        color: moodData.primaryColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 40,
                                       ),
-                                ),
-                              )
-                              : Text(
-                                user.displayName?.substring(0, 1).toUpperCase() ?? 'U',
-                                style: TextStyle(
-                                  color: moodData.primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 40,
-                                ),
+                                    ),
                               ),
-                    ),
+                            )
+                            : Text(
+                              user.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                              style: TextStyle(
+                                color: moodData.primaryColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 40,
+                              ),
+                            ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -164,20 +114,22 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
 
-          // Debug Section
-          const Divider(),
-          ListTile(
-            title: const Text('Debug Options'),
-            subtitle: const Text('Advanced tools for troubleshooting'),
-            leading: const Icon(Icons.bug_report),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const DebugSettingsScreen()),
-              );
-            },
-          ),
+          // Debug Section - Only show in development
+          if (EnvironmentConfig.isDevelopment) ...[
+            const Divider(),
+            ListTile(
+              title: const Text('Debug Options'),
+              subtitle: const Text('Advanced tools for troubleshooting'),
+              leading: const Icon(Icons.bug_report),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DebugSettingsScreen()),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

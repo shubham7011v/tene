@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/models/mood_data.dart';
 import 'package:tene/models/tene_model.dart';
 import 'package:tene/providers/providers.dart' as main_providers;
-import 'package:tene/providers/tene_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/home_screen.dart';
