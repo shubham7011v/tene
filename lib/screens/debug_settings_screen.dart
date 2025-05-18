@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:tene/providers/providers.dart';
 import 'package:tene/services/tene_service.dart';
 
 class DebugSettingsScreen extends ConsumerStatefulWidget {

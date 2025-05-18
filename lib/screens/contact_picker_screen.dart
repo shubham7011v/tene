@@ -186,7 +186,7 @@ class _ContactPickerScreenState extends ConsumerState<ContactPickerScreen> {
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Text(
-                  'Who do you want to send your vibe to?',
+                  'Who do you want to send your tene to?',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

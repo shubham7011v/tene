@@ -5,7 +5,7 @@ import 'package:tene/providers/auth_providers.dart';
 import 'package:tene/providers/contact_providers.dart';
 import 'package:tene/screens/giphy_picker_screen.dart';
 import 'package:tene/screens/receive_tene_screen.dart';
-import 'package:tene/screens/tene_feed_screen.dart';
+import 'package:tene/screens/all_tenes_screen.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:tene/models/mood_data.dart';
 import 'package:tene/models/tene_model.dart';
@@ -14,6 +14,7 @@ import 'package:tene/services/mood_storage_service.dart';
 
 import 'package:tene/screens/phone_link_screen.dart';
 import 'package:tene/screens/settings_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -46,9 +47,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       }
     });
 
-    // Check for phone number as soon as the widget initializes
+    // Check for phone number and contact permissions as soon as the widget initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPhoneNumber();
+      _checkContactPermission();
     });
   }
 
@@ -78,6 +80,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       Navigator.of(
         context,
       ).pushReplacement(MaterialPageRoute(builder: (_) => const PhoneLinkScreen()));
+    }
+  }
+
+  Future<void> _checkContactPermission() async {
+    final status = await Permission.contacts.status;
+    if (status != PermissionStatus.granted) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => AlertDialog(
+                title: const Text('Contact Permission Required'),
+                content: const Text(
+                  'Tene needs access to your contacts to help you share content with your friends. Please grant permission to continue.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      final result = await Permission.contacts.request();
+                      if (result != PermissionStatus.granted && mounted) {
+                        // Show a message that the app needs contacts to function properly
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Contact permission is required for full functionality'),
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text('Grant Permission'),
+                  ),
+                ],
+              ),
+        );
+      }
     }
   }
 
@@ -208,7 +247,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   // View all received Tenes
   void _viewAllTenes() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TeneFeedScreen()));
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AllTenesScreen()));
   }
 
   // View a specific Tene
@@ -530,14 +569,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           Icon(Icons.mail_outline, size: 48, color: moodData.secondaryColor.withOpacity(0.7)),
           const SizedBox(height: 16),
           const Text(
-            'Your vibe inbox is empty',
+            'No unviewed Tenes',
             style: TextStyle(color: Color(0xFF2D4A6D), fontWeight: FontWeight.bold, fontSize: 18),
           ),
           const SizedBox(height: 8),
           const Text(
-            'When friends send you Tenes, they will appear here',
+            'You\'ve viewed all your Tenes. Tap below to see your full history',
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF5A7A99), fontSize: 14),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _viewAllTenes,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2D4A6D).withOpacity(0.1),
+              foregroundColor: const Color(0xFF2D4A6D),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: const Color(0xFF2D4A6D).withOpacity(0.2), width: 1),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'View All Tenes',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: const Color(0xFF2D4A6D),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -555,7 +621,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Recent Vibes',
+                'Recent Tenes',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -581,7 +647,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'View All Vibes',
+                        'View All Tenes',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,

@@ -21,12 +21,6 @@ final teneServiceProvider = Provider<TeneService>((ref) {
   return service;
 });
 
-/// Stream provider for all pair Tenes
-final allPairTenesProvider = StreamProvider<List<TeneData>>((ref) {
-  final teneService = ref.watch(teneServiceProvider);
-  return teneService.getReceivedTenes();
-});
-
 /// Provider for a function that views a Tene
 final viewTeneProvider = Provider.family<void, String>((ref, pairId) {
   final teneService = ref.watch(teneServiceProvider);
@@ -63,4 +57,28 @@ final sendTeneProvider = Provider<
   return ({required String toPhone, required String vibeType, required String gifUrl}) async {
     return teneService.sendTene(toPhone: toPhone, vibeType: vibeType, gifUrl: gifUrl);
   };
+});
+
+/// Provider for received Tenes
+final receivedTenesProvider = StreamProvider<List<TeneData>>((ref) {
+  final teneService = ref.watch(teneServiceProvider);
+  return teneService.getReceivedTenes();
+});
+
+/// Provider for sent Tenes
+final sentTenesProvider = StreamProvider<List<TeneData>>((ref) {
+  final teneService = ref.watch(teneServiceProvider);
+  return teneService.getSentTenes();
+});
+
+/// Provider for unviewed Tenes
+final unviewedTenesProvider = StreamProvider<List<TeneData>>((ref) {
+  final teneService = ref.watch(teneServiceProvider);
+  return teneService.getUnviewedTenes();
+});
+
+/// Provider for viewed Tenes
+final viewedTenesProvider = StreamProvider<List<TeneData>>((ref) {
+  final teneService = ref.watch(teneServiceProvider);
+  return teneService.getReceivedTenes().map((tenes) => tenes.where((tene) => tene.viewed).toList());
 });

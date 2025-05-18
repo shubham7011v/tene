@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tene/providers/providers.dart';
-import 'package:tene/providers/tene_providers.dart';
 import 'package:tene/models/tene_model.dart';
+import 'package:tene/providers/tene_providers.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:tene/screens/receive_tene_screen.dart';
 import 'package:tene/models/mood_data.dart';
@@ -14,12 +14,12 @@ class AllTenesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tenesAsync = ref.watch(allPairTenesProvider);
+    final tenesAsync = ref.watch(receivedTenesProvider);
     final moodData = ref.watch(currentMoodDataProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('All Vibes'),
+        title: const Text('All Tenes'),
         backgroundColor: moodData.primaryColor,
         foregroundColor: Colors.white,
       ),
@@ -37,7 +37,7 @@ class AllTenesScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'No vibes yet',
+                    'No tenes yet',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -46,7 +46,7 @@ class AllTenesScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'When friends send you vibes, they will appear here',
+                    'When friends send you tenes, they will appear here',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Color(0xFF5A7A99), fontSize: 16),
                   ),

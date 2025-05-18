@@ -219,7 +219,16 @@ class TeneService {
 
   /// Check if a tene has been seen locally
   Future<bool> hasSeen(String teneId) async {
-    return await _secureStorage.read(key: 'viewed_tene_$teneId') == 'true';
+    // First check in-memory set for faster lookups
+    if (_seenTeneIds.contains(teneId)) {
+      return true;
+    }
+    // If not in memory, check secure storage
+    final hasSeen = await _secureStorage.read(key: 'viewed_tene_$teneId') == 'true';
+    if (hasSeen) {
+      _seenTeneIds.add(teneId); // Add to in-memory set for future lookups
+    }
+    return hasSeen;
   }
 
   /// Mark a tene as seen locally
@@ -379,7 +388,8 @@ class TeneService {
 
   /// Mark a Tene as viewed locally
   Future<void> markTeneViewed(String teneId) async {
-    await markSeen(teneId);
+    await _secureStorage.write(key: 'viewed_tene_$teneId', value: 'true');
+    _seenTeneIds.add(teneId); // Add to in-memory set for faster lookups
   }
 
   /// Get a stream of all sent Tenes by the current user
@@ -560,20 +570,3 @@ class TeneService {
     }
   }
 }
-
-/// Provider for the TeneService
-final teneServiceProvider = Provider<TeneService>((ref) {
-  return TeneService();
-});
-
-/// Provider for received Tenes
-final receivedTenesProvider = StreamProvider<List<TeneData>>((ref) {
-  final teneService = ref.watch(teneServiceProvider);
-  return teneService.getReceivedTenes();
-});
-
-/// Provider for sent Tenes
-final sentTenesProvider = StreamProvider<List<TeneData>>((ref) {
-  final teneService = ref.watch(teneServiceProvider);
-  return teneService.getSentTenes();
-});
